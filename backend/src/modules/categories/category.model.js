@@ -14,7 +14,6 @@ const categorySchema = new mongoose.Schema({
         required: true,
         lowercase: true,
         trim: true,
-        unique: true,
     },
     description: {
         type: String,
@@ -79,8 +78,15 @@ const categorySchema = new mongoose.Schema({
 });
 
 // ===== INDEXES - Production Optimized =====
-
-categorySchema.index({ parent_id: 1, display_order: 1 });
+categorySchema.index(
+    { slug: 1 },
+    {
+        unique: true,
+        partialFilterExpression: {
+            is_deleted: false
+        }
+    }
+);
 
 categorySchema.index(
     { parent_id: 1, display_order: 1 },

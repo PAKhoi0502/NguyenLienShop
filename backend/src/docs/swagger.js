@@ -31,6 +31,18 @@ const swaggerSpec = {
             description:
                 "Quản lý danh mục sản phẩm: lấy cây phân cấp, danh sách phẳng, tạo, cập nhật, xoá mềm, restore.",
         },
+        {
+            name: "Products",
+            description: "Quản lý sản phẩm: lấy danh sách, tìm kiếm, tạo, cập nhật, xoá mềm.",
+        },
+        {
+            name: "Variants",
+            description: "Quản lý biến thể sản phẩm: lấy danh sách, tạo, cập nhật, xoá mềm, quản lý tồn kho.",
+        },
+        {
+            name: "Variant Units",
+            description: "Quản lý đơn vị bán của biến thể: lấy danh sách, tạo, cập nhật, xoá, tính giá.",
+        },
     ],
     components: {
         securitySchemes: {
@@ -809,6 +821,509 @@ const swaggerSpec = {
                 },
                 required: ["success", "message"],
             },
+
+            // ✅ PRODUCT SCHEMAS
+            CreateProductInput: {
+                type: "object",
+                properties: {
+                    name: {
+                        type: "string",
+                        minLength: 2,
+                        maxLength: 200,
+                        description: "Tên sản phẩm",
+                        example: "Khăn giấy ướt",
+                    },
+                    slug: {
+                        type: "string",
+                        pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+                        description: "Slug URL-friendly",
+                        example: "khan-giay-uot",
+                    },
+                    category_id: {
+                        type: "string",
+                        pattern: "^[a-fA-F0-9]{24}$",
+                        description: "ID danh mục",
+                        example: "507f1f77bcf86cd799439011",
+                    },
+                    brand: {
+                        type: "string",
+                        maxLength: 100,
+                        description: "Thương hiệu",
+                        example: "ABC Brand",
+                    },
+                    short_description: {
+                        type: "string",
+                        maxLength: 500,
+                        description: "Mô tả ngắn",
+                        example: "Khăn giấy ướt chất lượng cao",
+                    },
+                    description: {
+                        type: "string",
+                        maxLength: 2000,
+                        description: "Mô tả chi tiết",
+                        example: "Khăn giấy ướt với công nghệ kháng khuẩn...",
+                    },
+                    images: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            properties: {
+                                url: { type: "string", format: "uri" },
+                                alt: { type: "string", maxLength: 200 },
+                                is_primary: { type: "boolean", default: false },
+                                sort_order: { type: "integer", minimum: 0, default: 0 },
+                            },
+                            required: ["url"],
+                        },
+                        description: "Danh sách hình ảnh",
+                    },
+                    search_keywords: {
+                        type: "array",
+                        items: { type: "string" },
+                        maxItems: 10,
+                        description: "Từ khóa tìm kiếm",
+                        example: ["khăn giấy", "ướt", "kháng khuẩn"],
+                    },
+                    status: {
+                        type: "string",
+                        enum: ["ACTIVE", "INACTIVE"],
+                        default: "ACTIVE",
+                        description: "Trạng thái sản phẩm",
+                    },
+                },
+                required: ["name", "category_id"],
+            },
+            UpdateProductInput: {
+                type: "object",
+                properties: {
+                    name: { type: "string", minLength: 2, maxLength: 200 },
+                    slug: { type: "string", pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+                    category_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    brand: { type: "string", maxLength: 100 },
+                    short_description: { type: "string", maxLength: 500 },
+                    description: { type: "string", maxLength: 2000 },
+                    images: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            properties: {
+                                url: { type: "string", format: "uri" },
+                                alt: { type: "string", maxLength: 200 },
+                                is_primary: { type: "boolean" },
+                                sort_order: { type: "integer", minimum: 0 },
+                            },
+                        },
+                    },
+                    search_keywords: { type: "array", items: { type: "string" }, maxItems: 10 },
+                    status: { type: "string", enum: ["ACTIVE", "INACTIVE"] },
+                },
+            },
+            Product: {
+                type: "object",
+                properties: {
+                    id: { type: "string", pattern: "^[a-fA-F0-9]{24}$", example: "507f1f77bcf86cd799439011" },
+                    name: { type: "string", example: "Khăn giấy ướt" },
+                    slug: { type: "string", example: "khan-giay-uot" },
+                    category_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$", example: "507f1f77bcf86cd799439012" },
+                    brand: { type: "string", example: "ABC Brand" },
+                    min_price: { type: "number", example: 150000 },
+                    max_price: { type: "number", example: 200000 },
+                    min_price_per_unit: { type: "number", example: 1500 },
+                    max_price_per_unit: { type: "number", example: 2000 },
+                    description: { type: "string", example: "Khăn giấy ướt chất lượng cao" },
+                    short_description: { type: "string", example: "Khăn giấy ướt với công nghệ kháng khuẩn" },
+                    images: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            properties: {
+                                url: { type: "string", format: "uri" },
+                                alt: { type: "string" },
+                                is_primary: { type: "boolean" },
+                                sort_order: { type: "integer" },
+                            },
+                        },
+                    },
+                    search_keywords: { type: "array", items: { type: "string" } },
+                    rating_avg: { type: "number", example: 4.5 },
+                    rating_count: { type: "integer", example: 100 },
+                    sold_count: { type: "integer", example: 500 },
+                    status: { type: "string", enum: ["ACTIVE", "INACTIVE"], example: "ACTIVE" },
+                    created_at: { type: "string", format: "date-time" },
+                    updated_at: { type: "string", format: "date-time" },
+                },
+                required: ["id", "name", "slug", "category_id", "status", "created_at", "updated_at"],
+            },
+            ProductListItem: {
+                type: "object",
+                properties: {
+                    id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    name: { type: "string" },
+                    slug: { type: "string" },
+                    category_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    brand: { type: "string" },
+                    min_price: { type: "number" },
+                    max_price: { type: "number" },
+                    image: { type: "string", format: "uri" },
+                    rating_avg: { type: "number" },
+                    rating_count: { type: "integer" },
+                    sold_count: { type: "integer" },
+                    status: { type: "string", enum: ["ACTIVE", "INACTIVE"] },
+                    created_at: { type: "string", format: "date-time" },
+                },
+                required: ["id", "name", "slug", "category_id", "status", "created_at"],
+            },
+            ProductDetail: {
+                allOf: [
+                    { $ref: "#/components/schemas/Product" },
+                    {
+                        type: "object",
+                        properties: {
+                            variants: {
+                                type: "array",
+                                items: { $ref: "#/components/schemas/VariantDetail" },
+                            },
+                        },
+                    },
+                ],
+            },
+
+            // ✅ VARIANT SCHEMAS
+            CreateVariantInput: {
+                type: "object",
+                properties: {
+                    size: {
+                        type: "string",
+                        minLength: 1,
+                        maxLength: 50,
+                        description: "Kích thước",
+                        example: "20x25",
+                    },
+                    fabric_type: {
+                        type: "string",
+                        minLength: 1,
+                        maxLength: 100,
+                        description: "Loại vải",
+                        example: "Vải Không Dệt",
+                    },
+                    stock: {
+                        type: "object",
+                        properties: {
+                            available: { type: "integer", minimum: 0, default: 0 },
+                            reserved: { type: "integer", minimum: 0, default: 0 },
+                            sold: { type: "integer", minimum: 0, default: 0 },
+                        },
+                    },
+                    status: {
+                        type: "string",
+                        enum: ["ACTIVE", "INACTIVE"],
+                        default: "ACTIVE",
+                    },
+                },
+                required: ["size", "fabric_type"],
+            },
+            UpdateVariantInput: {
+                type: "object",
+                properties: {
+                    size: { type: "string", minLength: 1, maxLength: 50 },
+                    fabric_type: { type: "string", minLength: 1, maxLength: 100 },
+                    stock: {
+                        type: "object",
+                        properties: {
+                            available: { type: "integer", minimum: 0 },
+                            reserved: { type: "integer", minimum: 0 },
+                            sold: { type: "integer", minimum: 0 },
+                        },
+                    },
+                    status: { type: "string", enum: ["ACTIVE", "INACTIVE"] },
+                },
+            },
+            Variant: {
+                type: "object",
+                properties: {
+                    id: { type: "string", pattern: "^[a-fA-F0-9]{24}$", example: "507f1f77bcf86cd799439013" },
+                    product_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$", example: "507f1f77bcf86cd799439011" },
+                    sku: { type: "string", example: "KGU-20x25-VKD" },
+                    size: { type: "string", example: "20x25" },
+                    fabric_type: { type: "string", example: "Vải Không Dệt" },
+                    min_price: { type: "number", example: 150000 },
+                    max_price: { type: "number", example: 200000 },
+                    min_price_per_unit: { type: "number", example: 1500 },
+                    max_price_per_unit: { type: "number", example: 2000 },
+                    stock: {
+                        type: "object",
+                        properties: {
+                            available: { type: "integer", example: 1000 },
+                            reserved: { type: "integer", example: 50 },
+                            sold: { type: "integer", example: 200 },
+                        },
+                    },
+                    status: { type: "string", enum: ["ACTIVE", "INACTIVE"], example: "ACTIVE" },
+                    created_at: { type: "string", format: "date-time" },
+                    updated_at: { type: "string", format: "date-time" },
+                },
+                required: ["id", "product_id", "sku", "size", "fabric_type", "status", "created_at", "updated_at"],
+            },
+            VariantDetail: {
+                allOf: [
+                    { $ref: "#/components/schemas/Variant" },
+                    {
+                        type: "object",
+                        properties: {
+                            units: {
+                                type: "array",
+                                items: { $ref: "#/components/schemas/VariantUnit" },
+                            },
+                        },
+                    },
+                ],
+            },
+
+            // ✅ VARIANT UNIT SCHEMAS
+            CreateVariantUnitInput: {
+                type: "object",
+                properties: {
+                    unit_type: {
+                        type: "string",
+                        enum: ["UNIT", "PACK", "BOX", "CARTON"],
+                        default: "PACK",
+                        description: "Loại đơn vị",
+                    },
+                    display_name: {
+                        type: "string",
+                        minLength: 1,
+                        maxLength: 100,
+                        description: "Tên hiển thị",
+                        example: "Gói 100",
+                    },
+                    pack_size: {
+                        type: "integer",
+                        minimum: 1,
+                        description: "Số lượng trong gói",
+                        example: 100,
+                    },
+                    price_tiers: {
+                        type: "array",
+                        minItems: 1,
+                        items: {
+                            type: "object",
+                            properties: {
+                                min_qty: { type: "integer", minimum: 1 },
+                                max_qty: { type: "integer", minimum: 1, nullable: true },
+                                unit_price: { type: "number", minimum: 0 },
+                            },
+                            required: ["min_qty", "unit_price"],
+                        },
+                        description: "Bậc giá",
+                    },
+                    min_order_qty: { type: "integer", minimum: 1, default: 1 },
+                    max_order_qty: { type: "integer", minimum: 1, nullable: true },
+                    qty_step: { type: "integer", minimum: 1, default: 1 },
+                    is_default: { type: "boolean", default: false },
+                    currency: { type: "string", enum: ["VND", "USD", "EUR"], default: "VND" },
+                },
+                required: ["display_name", "pack_size", "price_tiers"],
+            },
+            UpdateVariantUnitInput: {
+                type: "object",
+                properties: {
+                    unit_type: { type: "string", enum: ["UNIT", "PACK", "BOX", "CARTON"] },
+                    display_name: { type: "string", minLength: 1, maxLength: 100 },
+                    price_tiers: {
+                        type: "array",
+                        minItems: 1,
+                        items: {
+                            type: "object",
+                            properties: {
+                                min_qty: { type: "integer", minimum: 1 },
+                                max_qty: { type: "integer", minimum: 1, nullable: true },
+                                unit_price: { type: "number", minimum: 0 },
+                            },
+                            required: ["min_qty", "unit_price"],
+                        },
+                    },
+                    min_order_qty: { type: "integer", minimum: 1 },
+                    max_order_qty: { type: "integer", minimum: 1, nullable: true },
+                    qty_step: { type: "integer", minimum: 1 },
+                    is_default: { type: "boolean" },
+                    currency: { type: "string", enum: ["VND", "USD", "EUR"] },
+                },
+            },
+            VariantUnit: {
+                type: "object",
+                properties: {
+                    id: { type: "string", pattern: "^[a-fA-F0-9]{24}$", example: "507f1f77bcf86cd799439014" },
+                    variant_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$", example: "507f1f77bcf86cd799439013" },
+                    unit_type: { type: "string", enum: ["UNIT", "PACK", "BOX", "CARTON"], example: "PACK" },
+                    display_name: { type: "string", example: "Gói 100" },
+                    pack_size: { type: "integer", example: 100 },
+                    price_tiers: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            properties: {
+                                min_qty: { type: "integer", example: 1 },
+                                max_qty: { type: "integer", nullable: true, example: 10 },
+                                unit_price: { type: "number", example: 180000 },
+                            },
+                        },
+                    },
+                    min_order_qty: { type: "integer", example: 1 },
+                    max_order_qty: { type: "integer", nullable: true, example: 100 },
+                    qty_step: { type: "integer", example: 1 },
+                    is_default: { type: "boolean", example: true },
+                    currency: { type: "string", enum: ["VND", "USD", "EUR"], example: "VND" },
+                    created_at: { type: "string", format: "date-time" },
+                    updated_at: { type: "string", format: "date-time" },
+                },
+                required: ["id", "variant_id", "unit_type", "display_name", "pack_size", "price_tiers", "min_order_qty", "qty_step", "is_default", "currency", "created_at", "updated_at"],
+            },
+            CalculatePriceInput: {
+                type: "object",
+                properties: {
+                    qty_packs: {
+                        type: "integer",
+                        minimum: 1,
+                        description: "Số gói muốn mua",
+                        example: 3,
+                    },
+                },
+                required: ["qty_packs"],
+            },
+            PriceCalculationResult: {
+                type: "object",
+                properties: {
+                    qty_packs: { type: "integer", example: 3 },
+                    unit_price: { type: "number", example: 180000 },
+                    total_price: { type: "number", example: 540000 },
+                    total_items: { type: "integer", example: 300 },
+                    price_per_unit: { type: "number", example: 1800 },
+                    currency: { type: "string", example: "VND" },
+                    pack_size: { type: "integer", example: 100 },
+                    unit_display: { type: "string", example: "Gói 100" },
+                },
+                required: ["qty_packs", "unit_price", "total_price", "total_items", "price_per_unit", "currency", "pack_size", "unit_display"],
+            },
+            ReserveStockInput: {
+                type: "object",
+                properties: {
+                    qty_items: {
+                        type: "integer",
+                        minimum: 1,
+                        description: "Số lượng sản phẩm (cái)",
+                        example: 300,
+                    },
+                },
+                required: ["qty_items"],
+            },
+
+            // ✅ RESPONSE SCHEMAS
+            ProductResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: { $ref: "#/components/schemas/Product" },
+                },
+                required: ["success", "data"],
+            },
+            ProductDetailResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: { $ref: "#/components/schemas/ProductDetail" },
+                },
+                required: ["success", "data"],
+            },
+            ProductsListResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/ProductListItem" },
+                    },
+                    pagination: {
+                        type: "object",
+                        properties: {
+                            current_page: { type: "integer", example: 1 },
+                            total_pages: { type: "integer", example: 5 },
+                            total_items: { type: "integer", example: 100 },
+                            per_page: { type: "integer", example: 20 },
+                        },
+                        required: ["current_page", "total_pages", "total_items", "per_page"],
+                    },
+                },
+                required: ["success", "data", "pagination"],
+            },
+            VariantResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: { $ref: "#/components/schemas/Variant" },
+                },
+                required: ["success", "data"],
+            },
+            VariantsListResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/Variant" },
+                    },
+                },
+                required: ["success", "data"],
+            },
+            VariantUnitResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: { $ref: "#/components/schemas/VariantUnit" },
+                },
+                required: ["success", "data"],
+            },
+            VariantUnitsListResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/VariantUnit" },
+                    },
+                },
+                required: ["success", "data"],
+            },
+            CalculatePriceResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: { $ref: "#/components/schemas/PriceCalculationResult" },
+                },
+                required: ["success", "data"],
+            },
+            StockResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: {
+                        type: "object",
+                        properties: {
+                            variant_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                            sku: { type: "string" },
+                            stock: { $ref: "#/components/schemas/Variant" },
+                        },
+                    },
+                },
+                required: ["success", "data"],
+            },
+            DeleteResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    message: { type: "string", example: "Deleted successfully" },
+                },
+                required: ["success", "message"],
+            },
         },
     },
     paths: {
@@ -1456,6 +1971,798 @@ const swaggerSpec = {
                         },
                     },
                     "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        // ✅ PRODUCT PATHS
+        "/api/v1/products": {
+            get: {
+                tags: ["Products"],
+                summary: "Get all products",
+                security: [],
+                parameters: [
+                    { in: "query", name: "page", schema: { type: "integer", minimum: 1, default: 1 } },
+                    { in: "query", name: "limit", schema: { type: "integer", minimum: 1, maximum: 100, default: 20 } },
+                    { in: "query", name: "category_id", schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                    { in: "query", name: "min_price", schema: { type: "integer", minimum: 0 } },
+                    { in: "query", name: "max_price", schema: { type: "integer", minimum: 0 } },
+                    { in: "query", name: "status", schema: { type: "string", enum: ["ACTIVE", "INACTIVE"] } },
+                    { in: "query", name: "search", schema: { type: "string" } },
+                    { in: "query", name: "sortBy", schema: { type: "string", enum: ["popular", "rating", "price_asc", "price_desc", "newest"], default: "newest" } },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/ProductsListResponse" },
+                            },
+                        },
+                    },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+            post: {
+                tags: ["Products"],
+                summary: "Create product",
+                security: [{ bearerAuth: [] }],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/CreateProductInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "201": {
+                        description: "Created",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/ProductResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/products/search": {
+            get: {
+                tags: ["Products"],
+                summary: "Search products",
+                security: [],
+                parameters: [
+                    { in: "query", name: "q", schema: { type: "string", minLength: 2, maxLength: 100 }, required: true },
+                    { in: "query", name: "limit", schema: { type: "integer", minimum: 1, maximum: 50, default: 20 } },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/ProductsListResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/products/category/{categoryId}": {
+            get: {
+                tags: ["Products"],
+                summary: "Get products by category",
+                security: [],
+                parameters: [
+                    { in: "path", name: "categoryId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                    { in: "query", name: "limit", schema: { type: "integer", minimum: 1, maximum: 100, default: 50 } },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/ProductsListResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/products/slug/{slug}": {
+            get: {
+                tags: ["Products"],
+                summary: "Get product by slug",
+                security: [],
+                parameters: [
+                    { in: "path", name: "slug", required: true, schema: { type: "string" } },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/ProductDetailResponse" },
+                            },
+                        },
+                    },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/products/{productId}": {
+            get: {
+                tags: ["Products"],
+                summary: "Get product by ID",
+                security: [],
+                parameters: [
+                    { in: "path", name: "productId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/ProductDetailResponse" },
+                            },
+                        },
+                    },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+            patch: {
+                tags: ["Products"],
+                summary: "Update product",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    { in: "path", name: "productId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/UpdateProductInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/ProductResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+            delete: {
+                tags: ["Products"],
+                summary: "Delete product",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    { in: "path", name: "productId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/DeleteResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        // ✅ VARIANT PATHS
+        "/api/v1/products/{productId}/variants": {
+            get: {
+                tags: ["Variants"],
+                summary: "Get variants by product",
+                security: [],
+                parameters: [
+                    { in: "path", name: "productId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/VariantsListResponse" },
+                            },
+                        },
+                    },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+            post: {
+                tags: ["Variants"],
+                summary: "Create variant",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    { in: "path", name: "productId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/CreateVariantInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "201": {
+                        description: "Created",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/VariantResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/variants/id/{variantId}": {
+            get: {
+                tags: ["Variants"],
+                summary: "Get variant by ID",
+                security: [],
+                parameters: [
+                    { in: "path", name: "variantId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/VariantResponse" },
+                            },
+                        },
+                    },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+            patch: {
+                tags: ["Variants"],
+                summary: "Update variant",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    { in: "path", name: "variantId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/UpdateVariantInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/VariantResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+            delete: {
+                tags: ["Variants"],
+                summary: "Delete variant",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    { in: "path", name: "variantId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/DeleteResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/variants/id/{variantId}/stock": {
+            get: {
+                tags: ["Variants"],
+                summary: "Check variant stock",
+                security: [],
+                parameters: [
+                    { in: "path", name: "variantId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/StockResponse" },
+                            },
+                        },
+                    },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/variants/id/{variantId}/max-order-qty": {
+            get: {
+                tags: ["Variants"],
+                summary: "Get max order quantity",
+                security: [],
+                parameters: [
+                    { in: "path", name: "variantId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                    { in: "query", name: "pack_size", schema: { type: "integer", minimum: 1, default: 100 } },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: {
+                                        success: { type: "boolean", example: true },
+                                        data: {
+                                            type: "object",
+                                            properties: {
+                                                variant_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                                                max_packs: { type: "integer", example: 5 },
+                                                max_items: { type: "integer", example: 500 },
+                                                pack_size: { type: "integer", example: 100 },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/variants/id/{variantId}/reserve-stock": {
+            post: {
+                tags: ["Variants"],
+                summary: "Reserve stock",
+                security: [],
+                parameters: [
+                    { in: "path", name: "variantId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/ReserveStockInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/StockResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/variants/id/{variantId}/complete-sale": {
+            post: {
+                tags: ["Variants"],
+                summary: "Complete sale",
+                security: [],
+                parameters: [
+                    { in: "path", name: "variantId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/ReserveStockInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/StockResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/variants/id/{variantId}/release-stock": {
+            post: {
+                tags: ["Variants"],
+                summary: "Release reserved stock",
+                security: [],
+                parameters: [
+                    { in: "path", name: "variantId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/ReserveStockInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/StockResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        // ✅ VARIANT UNIT PATHS
+        "/api/v1/variant-units/{unitId}": {
+            get: {
+                tags: ["Variant Units"],
+                summary: "Get variant unit by ID",
+                security: [],
+                parameters: [
+                    { in: "path", name: "unitId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/VariantUnitResponse" },
+                            },
+                        },
+                    },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+            patch: {
+                tags: ["Variant Units"],
+                summary: "Update variant unit",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    { in: "path", name: "unitId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/UpdateVariantUnitInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/VariantUnitResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+            delete: {
+                tags: ["Variant Units"],
+                summary: "Delete variant unit",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    { in: "path", name: "unitId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/DeleteResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/variants/{variantId}/units": {
+            get: {
+                tags: ["Variant Units"],
+                summary: "Get units by variant",
+                security: [],
+                parameters: [
+                    { in: "path", name: "variantId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/VariantUnitsListResponse" },
+                            },
+                        },
+                    },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+            post: {
+                tags: ["Variant Units"],
+                summary: "Create variant unit",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    { in: "path", name: "variantId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/CreateVariantUnitInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "201": {
+                        description: "Created",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/VariantUnitResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/variants/{variantId}/units/default": {
+            get: {
+                tags: ["Variant Units"],
+                summary: "Get default unit for variant",
+                security: [],
+                parameters: [
+                    { in: "path", name: "variantId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/VariantUnitResponse" },
+                            },
+                        },
+                    },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/variant-units/{unitId}/price-tiers": {
+            get: {
+                tags: ["Variant Units"],
+                summary: "Get price tiers",
+                security: [],
+                parameters: [
+                    { in: "path", name: "unitId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: {
+                                        success: { type: "boolean", example: true },
+                                        data: {
+                                            type: "array",
+                                            items: {
+                                                type: "object",
+                                                properties: {
+                                                    tier_number: { type: "integer", example: 1 },
+                                                    min_qty: { type: "integer", example: 1 },
+                                                    max_qty: { type: "integer", nullable: true, example: 10 },
+                                                    price: { type: "number", example: 180000 },
+                                                    price_per_unit: { type: "number", example: 1800 },
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/variant-units/{unitId}/calculate-price": {
+            post: {
+                tags: ["Variant Units"],
+                summary: "Calculate price",
+                security: [],
+                parameters: [
+                    { in: "path", name: "unitId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/CalculatePriceInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/CalculatePriceResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/variant-units/{unitId}/max-orderable-qty": {
+            get: {
+                tags: ["Variant Units"],
+                summary: "Get max orderable quantity",
+                security: [],
+                parameters: [
+                    { in: "path", name: "unitId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: {
+                                        success: { type: "boolean", example: true },
+                                        data: {
+                                            type: "object",
+                                            properties: {
+                                                unit_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                                                max_orderable_packs: { type: "integer", example: 999 },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/variant-units/validate-tiers": {
+            post: {
+                tags: ["Variant Units"],
+                summary: "Validate price tiers",
+                security: [{ bearerAuth: [] }],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: {
+                                type: "array",
+                                minItems: 1,
+                                items: {
+                                    type: "object",
+                                    properties: {
+                                        min_qty: { type: "integer", minimum: 1 },
+                                        max_qty: { type: "integer", minimum: 1, nullable: true },
+                                        unit_price: { type: "number", minimum: 0 },
+                                    },
+                                    required: ["min_qty", "unit_price"],
+                                },
+                            },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: {
+                                        success: { type: "boolean", example: true },
+                                        data: {
+                                            type: "object",
+                                            properties: {
+                                                valid: { type: "boolean", example: true },
+                                                message: { type: "string", example: "Price tiers are valid" },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
                     "500": { $ref: "#/components/responses/InternalError" },
                 },
             },

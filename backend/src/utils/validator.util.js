@@ -14,5 +14,4 @@ const whitelistFields = (data, allowedFields) => {
         )
     );
 };
-
 module.exports = { validateObjectId, whitelistFields };

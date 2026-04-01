@@ -5,8 +5,11 @@ const AppError = require('../../utils/appError.util');
 class UserService {
     /**
      * Get user by ID
+     * @param {String} userId - MongoDB ObjectId
+     * @returns {Object} User DTO
+     * @throws {AppError} If user not found
      */
-    async getUserById(userId) {
+    static async getUserById(userId) {
         const user = await User.findById(userId);
 
         if (!user) {
@@ -18,15 +21,22 @@ class UserService {
 
     /**
      * Get current authenticated user
+     * @param {String} userId - MongoDB ObjectId
+     * @returns {Object} User DTO
      */
-    async getMe(userId) {
-        return this.getUserById(userId);
+    static async getMe(userId) {
+        return UserService.getUserById(userId);
     }
 
     /**
-     * Get all users with pagination
+     * Get all users with pagination and filtering
+     * @param {Number} page - Page number (1-indexed)
+     * @param {Number} limit - Items per page
+     * @param {String} search - Search query (email or name)
+     * @param {String} status - Filter by status
+     * @returns {Object} Paginated users with metadata
      */
-    async getAllUsers(page = 1, limit = 20, search = null, status = null) {
+    static async getAllUsers(page = 1, limit = 20, search = null, status = null) {
         const skip = (page - 1) * limit;
         const filter = {};
 
@@ -60,10 +70,12 @@ class UserService {
 
     /**
      * Update user profile
-     * @param {String} userId - User ID
+     * @param {String} userId - MongoDB ObjectId
      * @param {Object} updateData - Data from UserMapper.toUpdatePayload()
+     * @returns {Object} Updated user DTO
+     * @throws {AppError} If user not found or validation fails
      */
-    async updateUser(userId, updateData) {
+    static async updateUser(userId, updateData) {
         if (!updateData || Object.keys(updateData).length === 0) {
             throw new AppError(
                 'No valid fields to update',
@@ -100,8 +112,11 @@ class UserService {
 
     /**
      * Delete user (soft delete)
+     * @param {String} userId - MongoDB ObjectId
+     * @returns {Object} Deletion confirmation
+     * @throws {AppError} If user not found
      */
-    async deleteUser(userId) {
+    static async deleteUser(userId) {
         const user = await User.findByIdAndUpdate(
             userId,
             { deleted_at: new Date() },
@@ -112,13 +127,17 @@ class UserService {
             throw new AppError('User not found', 404, 'USER_NOT_FOUND');
         }
 
-        return { message: 'User deleted successfully' };
+        return UserMapper.toResponseDTO(user);
     }
 
     /**
      * Update user roles (admin only)
+     * @param {String} userId - MongoDB ObjectId
+     * @param {Array<String>} roles - Array of roles ['CUSTOMER', 'MANAGER', 'ADMIN']
+     * @returns {Object} Updated user DTO
+     * @throws {AppError} If user not found or invalid roles
      */
-    async updateUserRoles(userId, roles) {
+    static async updateUserRoles(userId, roles) {
         if (!Array.isArray(roles) || roles.length === 0) {
             throw new AppError(
                 'Roles must be a non-empty array',
@@ -154,8 +173,13 @@ class UserService {
 
     /**
      * Logout all devices (increment token version)
+     * Used when user changes password or wants to logout all devices
+     * 
+     * @param {String} userId - MongoDB ObjectId
+     * @returns {Object} Logout confirmation
+     * @throws {AppError} If user not found
      */
-    async logoutAllDevices(userId) {
+    static async logoutAllDevices(userId) {
         const user = await User.findByIdAndUpdate(
             userId,
             { $inc: { token_version: 1 } },
@@ -171,8 +195,14 @@ class UserService {
 
     /**
      * Verify token version (check if token is revoked)
+     * Used in auth middleware to invalidate old tokens
+     * 
+     * @param {String} userId - MongoDB ObjectId
+     * @param {Number} tokenVersion - Version from JWT payload
+     * @returns {Boolean} True if token version is valid
+     * @throws {AppError} If user not found or token is revoked
      */
-    async verifyTokenVersion(userId, tokenVersion) {
+    static async verifyTokenVersion(userId, tokenVersion) {
         const user = await User.findById(userId).select('+token_version');
 
         if (!user) {
@@ -192,11 +222,14 @@ class UserService {
 
     /**
      * Get user with token version (for auth middleware)
+     * Used in auth.middleware.js for token revocation check
+     * 
+     * @param {String} userId - MongoDB ObjectId
+     * @returns {Object} User document with token_version
+     * @throws {AppError} If user not found
      */
-    async getUserWithTokenVersion(userId) {
-        const user = await User.findById(userId).select(
-            '+token_version'
-        );
+    static async getUserWithTokenVersion(userId) {
+        const user = await User.findById(userId).select('+token_version');
 
         if (!user) {
             throw new AppError('User not found', 404, 'USER_NOT_FOUND');
@@ -206,4 +239,4 @@ class UserService {
     }
 }
 
-module.exports = new UserService();
+module.exports = UserService;

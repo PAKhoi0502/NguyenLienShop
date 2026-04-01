@@ -21,6 +21,16 @@ const swaggerSpec = {
             description:
                 "Quản lý thông tin người dùng: lấy profile hiện tại, danh sách user, cập nhật profile, xoá mềm, cập nhật roles.",
         },
+        {
+            name: "User Addresses",
+            description:
+                "Quản lý địa chỉ giao hàng: tạo, lấy danh sách, cập nhật, đặt mặc định, xoá.",
+        },
+        {
+            name: "Categories",
+            description:
+                "Quản lý danh mục sản phẩm: lấy cây phân cấp, danh sách phẳng, tạo, cập nhật, xoá mềm, restore.",
+        },
     ],
     components: {
         securitySchemes: {
@@ -422,6 +432,383 @@ const swaggerSpec = {
                     meta: { page: 1, limit: 20, total: 150 },
                 },
             },
+            CreateUserAddressInput: {
+                type: "object",
+                properties: {
+                    receiver_name: {
+                        type: "string",
+                        minLength: 1,
+                        description: "Tên người nhận",
+                        example: "Nguyen Van A",
+                    },
+                    phone: {
+                        type: "string",
+                        pattern: "^(0|\\+84)[0-9]{9}$",
+                        description: "Số điện thoại Việt Nam",
+                        example: "0912345678",
+                    },
+                    address_line_1: {
+                        type: "string",
+                        minLength: 1,
+                        description: "Địa chỉ dòng 1",
+                        example: "123 Đường Lê Lợi",
+                    },
+                    address_line_2: {
+                        type: "string",
+                        description: "Địa chỉ dòng 2 (tùy chọn)",
+                        example: "Căn hộ 101",
+                    },
+                    city: {
+                        type: "string",
+                        minLength: 1,
+                        description: "Thành phố/Tỉnh",
+                        example: "Ho Chi Minh",
+                    },
+                    district: {
+                        type: "string",
+                        minLength: 1,
+                        description: "Quận/Huyện",
+                        example: "District 1",
+                    },
+                    ward: {
+                        type: "string",
+                        minLength: 1,
+                        description: "Phường/Xã",
+                        example: "Ward 1",
+                    },
+                    is_default: {
+                        type: "boolean",
+                        description: "Địa chỉ mặc định",
+                        default: false,
+                    },
+                },
+                required: ["receiver_name", "phone", "address_line_1", "city", "district", "ward"],
+                example: {
+                    receiver_name: "Nguyen Van A",
+                    phone: "0912345678",
+                    address_line_1: "123 Đường Lê Lợi",
+                    address_line_2: "Căn hộ 101",
+                    city: "Ho Chi Minh",
+                    district: "District 1",
+                    ward: "Ward 1",
+                    is_default: false,
+                },
+            },
+            UpdateUserAddressInput: {
+                type: "object",
+                properties: {
+                    receiver_name: { type: "string", minLength: 1 },
+                    phone: { type: "string", pattern: "^(0|\\+84)[0-9]{9}$" },
+                    address_line_1: { type: "string", minLength: 1 },
+                    address_line_2: { type: "string" },
+                    city: { type: "string", minLength: 1 },
+                    district: { type: "string", minLength: 1 },
+                    ward: { type: "string", minLength: 1 },
+                    is_default: { type: "boolean" },
+                },
+                example: {
+                    receiver_name: "Nguyen Van B",
+                    phone: "0987654321",
+                },
+            },
+            UserAddress: {
+                type: "object",
+                properties: {
+                    id: {
+                        type: "string",
+                        pattern: "^[a-fA-F0-9]{24}$",
+                        description: "MongoDB ObjectId",
+                        example: "507f1f77bcf86cd799439011",
+                    },
+                    user_id: {
+                        type: "string",
+                        pattern: "^[a-fA-F0-9]{24}$",
+                        description: "User ID",
+                        example: "507f1f77bcf86cd799439012",
+                    },
+                    receiver_name: { type: "string", example: "Nguyen Van A" },
+                    phone: { type: "string", example: "0912345678" },
+                    address_line_1: { type: "string", example: "123 Đường Lê Lợi" },
+                    address_line_2: { type: "string", example: "Căn hộ 101" },
+                    city: { type: "string", example: "Ho Chi Minh" },
+                    district: { type: "string", example: "District 1" },
+                    ward: { type: "string", example: "Ward 1" },
+                    is_default: { type: "boolean", example: false },
+                    created_at: { type: "string", format: "date-time" },
+                    updated_at: { type: "string", format: "date-time" },
+                },
+                required: [
+                    "id",
+                    "user_id",
+                    "receiver_name",
+                    "phone",
+                    "address_line_1",
+                    "city",
+                    "district",
+                    "ward",
+                    "is_default",
+                    "created_at",
+                    "updated_at",
+                ],
+            },
+            UserAddressListResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/UserAddress" },
+                    },
+                },
+                required: ["success", "data"],
+            },
+            CreateUserAddressResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: { $ref: "#/components/schemas/UserAddress" },
+                },
+                required: ["success", "data"],
+            },
+            UpdateUserAddressResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: { $ref: "#/components/schemas/UserAddress" },
+                },
+                required: ["success", "data"],
+            },
+            DeleteUserAddressResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: { $ref: "#/components/schemas/UserAddress" },
+                },
+                required: ["success", "data"],
+            },
+            CreateCategoryInput: {
+                type: "object",
+                properties: {
+                    name: {
+                        type: "string",
+                        minLength: 2,
+                        maxLength: 100,
+                        description: "Category name",
+                        example: "Electronics",
+                    },
+                    slug: {
+                        type: "string",
+                        pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+                        description: "URL-friendly slug",
+                        example: "electronics",
+                    },
+                    description: {
+                        type: "string",
+                        maxLength: 500,
+                        description: "Category description",
+                        example: "Electronic devices and accessories",
+                    },
+                    parent_id: {
+                        type: ["string", "null"],
+                        pattern: "^[a-fA-F0-9]{24}$",
+                        description: "Parent category ID (optional)",
+                        example: null,
+                    },
+                    status: {
+                        type: "string",
+                        enum: ["ACTIVE", "INACTIVE"],
+                        default: "ACTIVE",
+                        description: "Category status",
+                    },
+                    icon_url: {
+                        type: ["string", "null"],
+                        format: "uri",
+                        description: "Category icon URL",
+                    },
+                    image_url: {
+                        type: ["string", "null"],
+                        format: "uri",
+                        description: "Category image URL",
+                    },
+                    display_order: {
+                        type: "integer",
+                        minimum: 0,
+                        default: 0,
+                        description: "Display order",
+                    },
+                },
+                required: ["name", "slug"],
+            },
+            UpdateCategoryInput: {
+                type: "object",
+                properties: {
+                    name: {
+                        type: "string",
+                        minLength: 2,
+                        maxLength: 100,
+                    },
+                    slug: {
+                        type: "string",
+                        pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+                    },
+                    description: {
+                        type: "string",
+                        maxLength: 500,
+                    },
+                    status: {
+                        type: "string",
+                        enum: ["ACTIVE", "INACTIVE"],
+                    },
+                    icon_url: {
+                        type: ["string", "null"],
+                        format: "uri",
+                    },
+                    image_url: {
+                        type: ["string", "null"],
+                        format: "uri",
+                    },
+                    display_order: {
+                        type: "integer",
+                        minimum: 0,
+                    },
+                },
+            },
+            Category: {
+                type: "object",
+                properties: {
+                    id: {
+                        type: "string",
+                        pattern: "^[a-fA-F0-9]{24}$",
+                        description: "MongoDB ObjectId",
+                        example: "507f1f77bcf86cd799439011",
+                    },
+                    name: {
+                        type: "string",
+                        example: "Electronics",
+                    },
+                    slug: {
+                        type: "string",
+                        example: "electronics",
+                    },
+                    description: {
+                        type: "string",
+                        example: "Electronic devices and accessories",
+                    },
+                    parent_id: {
+                        type: ["string", "null"],
+                        pattern: "^[a-fA-F0-9]{24}$",
+                        example: null,
+                    },
+                    level: {
+                        type: "integer",
+                        minimum: 0,
+                        example: 0,
+                    },
+                    status: {
+                        type: "string",
+                        enum: ["ACTIVE", "INACTIVE"],
+                        example: "ACTIVE",
+                    },
+                    icon_url: {
+                        type: ["string", "null"],
+                        format: "uri",
+                    },
+                    image_url: {
+                        type: ["string", "null"],
+                        format: "uri",
+                    },
+                    display_order: {
+                        type: "integer",
+                        example: 0,
+                    },
+                    created_at: { type: "string", format: "date-time" },
+                    updated_at: { type: "string", format: "date-time" },
+                },
+                required: ["id", "name", "slug", "level", "status", "created_at", "updated_at"],
+            },
+            CategoryTree: {
+                type: "object",
+                properties: {
+                    id: {
+                        type: "string",
+                        pattern: "^[a-fA-F0-9]{24}$",
+                    },
+                    name: { type: "string" },
+                    slug: { type: "string" },
+                    level: { type: "integer" },
+                    status: { type: "string", enum: ["ACTIVE", "INACTIVE"] },
+                    children: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/CategoryTree" },
+                    },
+                },
+                required: ["id", "name", "slug", "level", "status", "children"],
+            },
+            BreadcrumbItem: {
+                type: "object",
+                properties: {
+                    id: {
+                        type: "string",
+                        pattern: "^[a-fA-F0-9]{24}$",
+                    },
+                    name: { type: "string" },
+                    slug: { type: "string" },
+                    level: { type: "integer" },
+                },
+                required: ["id", "name", "slug", "level"],
+            },
+            CategoryResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: { $ref: "#/components/schemas/Category" },
+                },
+                required: ["success", "data"],
+            },
+            CategoryTreeResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/CategoryTree" },
+                    },
+                },
+                required: ["success", "data"],
+            },
+            CategoriesListResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/Category" },
+                    },
+                },
+                required: ["success", "data"],
+            },
+            BreadcrumbResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/BreadcrumbItem" },
+                    },
+                },
+                required: ["success", "data"],
+            },
+            DeleteCategoryResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    message: {
+                        type: "string",
+                        example: "Category deleted successfully",
+                    },
+                },
+                required: ["success", "message"],
+            },
         },
     },
     paths: {
@@ -691,6 +1078,385 @@ const swaggerSpec = {
                     "401": { $ref: "#/components/responses/Unauthorized" },
                     "403": { $ref: "#/components/responses/Forbidden" },
                     "404": { $ref: "#/components/responses/NotFound" },
+                },
+            },
+        },
+        "/api/v1/user-addresses": {
+            post: {
+                tags: ["User Addresses"],
+                summary: "Create a new address",
+                security: [{ bearerAuth: [] }],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/CreateUserAddressInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "201": {
+                        description: "Created",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/CreateUserAddressResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/user-addresses/{userId}": {
+            get: {
+                tags: ["User Addresses"],
+                summary: "Get all addresses for a user",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        in: "path",
+                        name: "userId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                        description: "User ID",
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/UserAddressListResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                },
+            },
+        },
+        "/api/v1/user-addresses/{userId}/{addressId}": {
+            patch: {
+                tags: ["User Addresses"],
+                summary: "Update an address",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        in: "path",
+                        name: "userId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                    {
+                        in: "path",
+                        name: "addressId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/UpdateUserAddressInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/UpdateUserAddressResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                },
+            },
+            delete: {
+                tags: ["User Addresses"],
+                summary: "Delete an address",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        in: "path",
+                        name: "userId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                    {
+                        in: "path",
+                        name: "addressId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/DeleteUserAddressResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                },
+            },
+        },
+        "/api/v1/user-addresses/{userId}/{addressId}/set-default": {
+            patch: {
+                tags: ["User Addresses"],
+                summary: "Set address as default",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        in: "path",
+                        name: "userId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                    {
+                        in: "path",
+                        name: "addressId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/UpdateUserAddressResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                },
+            },
+        },
+        "/api/v1/categories/tree": {
+            get: {
+                tags: ["Categories"],
+                summary: "Get category tree (hierarchical structure)",
+                security: [],
+                description: "Get all categories organized in a tree structure with parent-child relationships.",
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/CategoryTreeResponse" },
+                            },
+                        },
+                    },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/categories/all": {
+            get: {
+                tags: ["Categories"],
+                summary: "Get all categories",
+                security: [],
+                description: "Get all categories as a flat list.",
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/CategoriesListResponse" },
+                            },
+                        },
+                    },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/categories/slug/{slug}": {
+            get: {
+                tags: ["Categories"],
+                summary: "Get category by slug",
+                security: [],
+                parameters: [
+                    {
+                        in: "path",
+                        name: "slug",
+                        required: true,
+                        schema: { type: "string" },
+                        description: "Category slug",
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/CategoryResponse" },
+                            },
+                        },
+                    },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/categories/{categoryId}": {
+            get: {
+                tags: ["Categories"],
+                summary: "Get category by ID",
+                security: [],
+                parameters: [
+                    {
+                        in: "path",
+                        name: "categoryId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                        description: "Category ID",
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/CategoryResponse" },
+                            },
+                        },
+                    },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+            post: {
+                tags: ["Categories"],
+                summary: "Create category",
+                security: [{ bearerAuth: [] }],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/CreateCategoryInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "201": {
+                        description: "Created",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/CategoryResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "409": { $ref: "#/components/responses/Conflict" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+            patch: {
+                tags: ["Categories"],
+                summary: "Update category",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        in: "path",
+                        name: "categoryId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/UpdateCategoryInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/CategoryResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "409": { $ref: "#/components/responses/Conflict" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+            delete: {
+                tags: ["Categories"],
+                summary: "Delete category (soft delete)",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        in: "path",
+                        name: "categoryId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/DeleteCategoryResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/categories/{categoryId}/breadcrumb": {
+            get: {
+                tags: ["Categories"],
+                summary: "Get category breadcrumb",
+                security: [],
+                parameters: [
+                    {
+                        in: "path",
+                        name: "categoryId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/BreadcrumbResponse" },
+                            },
+                        },
+                    },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
                 },
             },
         },

@@ -43,6 +43,11 @@ const swaggerSpec = {
             name: "Variant Units",
             description: "Quản lý đơn vị bán của biến thể: lấy danh sách, tạo, cập nhật, xoá, tính giá.",
         },
+        {
+            name: "Carts",
+            description:
+                "Quản lý giỏ hàng: tạo giỏ khách, lấy giỏ, thêm/cập nhật/xoá item, áp dụng discount, merge giỏ, checkout.",
+        },
     ],
     components: {
         securitySchemes: {
@@ -1323,6 +1328,338 @@ const swaggerSpec = {
                     message: { type: "string", example: "Deleted successfully" },
                 },
                 required: ["success", "message"],
+            },
+
+            // ✅ CART SCHEMAS
+            CartItem: {
+                type: "object",
+                properties: {
+                    id: { type: "string", pattern: "^[a-fA-F0-9]{24}$", example: "507f1f77bcf86cd799439015" },
+                    product_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$", example: "507f1f77bcf86cd799439010" },
+                    variant_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$", example: "507f1f77bcf86cd799439011" },
+                    unit_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$", example: "507f1f77bcf86cd799439012" },
+                    sku: { type: "string", example: "BAG-20X25-POLYESTER" },
+                    variant_label: { type: "string", example: "20x25 - Vải Không Dệt" },
+                    product_name: { type: "string", example: "Túi Bao Trái" },
+                    product_image: { type: "string", format: "uri", nullable: true },
+                    display_name: { type: "string", example: "Gói 100" },
+                    pack_size: { type: "integer", example: 100 },
+                    price_at_added: { type: "number", example: 180000 },
+                    quantity: { type: "integer", example: 5 },
+                    line_total: { type: "number", example: 900000 },
+                    added_at: { type: "string", format: "date-time" },
+                },
+                required: ["id", "product_id", "variant_id", "unit_id", "sku", "quantity", "price_at_added", "line_total"],
+            },
+            CartDiscount: {
+                type: "object",
+                properties: {
+                    code: { type: "string", example: "SALE10" },
+                    type: { type: "string", enum: ["PERCENT", "FIXED"], example: "PERCENT" },
+                    value: { type: "number", example: 10 },
+                    discount_amount: { type: "number", example: 90000 },
+                    min_purchase: { type: "number", example: 500000, nullable: true },
+                    max_discount: { type: "number", example: 100000, nullable: true },
+                    apply_scope: { type: "string", enum: ["CART", "PRODUCT"], example: "CART" },
+                    applied_at: { type: "string", format: "date-time" },
+                    expires_at: { type: "string", format: "date-time", nullable: true },
+                },
+                required: ["code", "type", "value", "discount_amount", "applied_at"],
+            },
+            CartTotals: {
+                type: "object",
+                properties: {
+                    subtotal: { type: "number", example: 900000 },
+                    discount_amount: { type: "number", example: 90000 },
+                    total: { type: "number", example: 810000 },
+                    item_count: { type: "integer", example: 1 },
+                    items_total_units: { type: "integer", example: 500 },
+                },
+                required: ["subtotal", "discount_amount", "total", "item_count", "items_total_units"],
+            },
+            Cart: {
+                type: "object",
+                properties: {
+                    id: { type: "string", pattern: "^[a-fA-F0-9]{24}$", example: "507f1f77bcf86cd799439016" },
+                    user_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$", nullable: true, example: "507f1f77bcf86cd799439013" },
+                    session_key: { type: "string", format: "uuid", nullable: true },
+                    items: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/CartItem" },
+                    },
+                    discount: {
+                        allOf: [{ $ref: "#/components/schemas/CartDiscount" }],
+                        nullable: true,
+                    },
+                    totals: { $ref: "#/components/schemas/CartTotals" },
+                    status: { type: "string", enum: ["ACTIVE", "ABANDONED", "CHECKED_OUT"], example: "ACTIVE" },
+                    created_at: { type: "string", format: "date-time" },
+                    updated_at: { type: "string", format: "date-time" },
+                },
+                required: ["id", "items", "totals", "status", "created_at", "updated_at"],
+            },
+            CartSummary: {
+                type: "object",
+                properties: {
+                    id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    item_count: { type: "integer", example: 1 },
+                    items_total_units: { type: "integer", example: 500 },
+                    subtotal: { type: "number", example: 900000 },
+                    discount_amount: { type: "number", example: 90000 },
+                    total: { type: "number", example: 810000 },
+                    status: { type: "string", enum: ["ACTIVE", "ABANDONED", "CHECKED_OUT"] },
+                },
+                required: ["id", "item_count", "total"],
+            },
+            AddToCartInput: {
+                type: "object",
+                properties: {
+                    product_id: {
+                        type: "string",
+                        pattern: "^[a-fA-F0-9]{24}$",
+                        description: "Product ID",
+                        example: "507f1f77bcf86cd799439010",
+                    },
+                    variant_id: {
+                        type: "string",
+                        pattern: "^[a-fA-F0-9]{24}$",
+                        description: "Variant ID",
+                        example: "507f1f77bcf86cd799439011",
+                    },
+                    unit_id: {
+                        type: "string",
+                        pattern: "^[a-fA-F0-9]{24}$",
+                        description: "Unit ID",
+                        example: "507f1f77bcf86cd799439012",
+                    },
+                    sku: {
+                        type: "string",
+                        minLength: 3,
+                        maxLength: 50,
+                        pattern: "^[A-Z0-9\\-]+$",
+                        example: "BAG-20X25-POLYESTER",
+                    },
+                    variant_label: {
+                        type: "string",
+                        minLength: 1,
+                        maxLength: 100,
+                        example: "20x25 - Vải Không Dệt",
+                    },
+                    product_name: {
+                        type: "string",
+                        minLength: 1,
+                        maxLength: 200,
+                        example: "Túi Bao Trái",
+                    },
+                    product_image: {
+                        type: "string",
+                        format: "uri",
+                        nullable: true,
+                    },
+                    display_name: {
+                        type: "string",
+                        minLength: 1,
+                        maxLength: 50,
+                        example: "Gói 100",
+                    },
+                    pack_size: {
+                        type: "integer",
+                        minimum: 1,
+                        maximum: 10000,
+                        example: 100,
+                    },
+                    price_at_added: {
+                        type: "number",
+                        minimum: 0,
+                        maximum: 999999999,
+                        example: 180000,
+                    },
+                    quantity: {
+                        type: "integer",
+                        minimum: 1,
+                        maximum: 999,
+                        example: 5,
+                    },
+                },
+                required: ["product_id", "variant_id", "unit_id", "sku", "variant_label", "product_name", "display_name", "pack_size", "price_at_added", "quantity"],
+            },
+            UpdateCartItemInput: {
+                type: "object",
+                properties: {
+                    quantity: {
+                        type: "integer",
+                        minimum: 1,
+                        maximum: 999,
+                        example: 10,
+                    },
+                },
+                required: ["quantity"],
+            },
+            ApplyDiscountInput: {
+                type: "object",
+                properties: {
+                    code: {
+                        type: "string",
+                        minLength: 3,
+                        maxLength: 20,
+                        pattern: "^[A-Z0-9\\-]+$",
+                        example: "SALE10",
+                    },
+                },
+                required: ["code"],
+            },
+            MergeCartInput: {
+                type: "object",
+                properties: {
+                    session_key: {
+                        type: "string",
+                        format: "uuid",
+                        example: "550e8400-e29b-41d4-a716-446655440000",
+                    },
+                },
+                required: ["session_key"],
+            },
+            CreateGuestCartInput: {
+                type: "object",
+                properties: {
+                    session_key: {
+                        type: "string",
+                        format: "uuid",
+                        example: "550e8400-e29b-41d4-a716-446655440000",
+                    },
+                },
+                required: ["session_key"],
+            },
+            CheckoutSnapshot: {
+                type: "object",
+                properties: {
+                    source_cart_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    cart_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    items: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            properties: {
+                                product_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                                variant_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                                unit_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                                sku: { type: "string" },
+                                variant_label: { type: "string" },
+                                product_name: { type: "string" },
+                                product_image: { type: "string", format: "uri", nullable: true },
+                                display_name: { type: "string" },
+                                pack_size: { type: "integer" },
+                                quantity: { type: "integer" },
+                                total_items: { type: "integer" },
+                                price_at_added: { type: "number" },
+                                line_total: { type: "number" },
+                                price_per_item: { type: "number" },
+                            },
+                        },
+                    },
+                    discount: {
+                        allOf: [{ $ref: "#/components/schemas/CartDiscount" }],
+                        nullable: true,
+                    },
+                    totals: { $ref: "#/components/schemas/CartTotals" },
+                    snapshot_at: { type: "string", format: "date-time" },
+                },
+                required: ["source_cart_id", "items", "totals", "snapshot_at"],
+            },
+            CartValidation: {
+                type: "object",
+                properties: {
+                    isValid: { type: "boolean", example: true },
+                    errors: {
+                        type: "array",
+                        items: { type: "string" },
+                        example: [],
+                    },
+                    totals: { $ref: "#/components/schemas/CartTotals" },
+                },
+                required: ["isValid", "errors", "totals"],
+            },
+            AbandonedCart: {
+                type: "object",
+                properties: {
+                    id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    user_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$", nullable: true },
+                    session_key: { type: "string", format: "uuid", nullable: true },
+                    items: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/CartItem" },
+                    },
+                    discount: {
+                        allOf: [{ $ref: "#/components/schemas/CartDiscount" }],
+                        nullable: true,
+                    },
+                    totals: { $ref: "#/components/schemas/CartTotals" },
+                    created_at: { type: "string", format: "date-time" },
+                    updated_at: { type: "string", format: "date-time" },
+                    expired_at: { type: "string", format: "date-time", nullable: true },
+                    abandoned_since: { type: "string", example: "2 days ago" },
+                    status: { type: "string", enum: ["ACTIVE", "ABANDONED", "CHECKED_OUT"] },
+                },
+                required: ["id", "items", "totals", "status"],
+            },
+
+            // ✅ RESPONSE SCHEMAS
+            CartResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: {
+                        allOf: [{ $ref: "#/components/schemas/Cart" }],
+                    },
+                },
+                required: ["success", "data"],
+            },
+            CartListResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/AbandonedCart" },
+                    },
+                    pagination: {
+                        type: "object",
+                        properties: {
+                            total: { type: "integer", example: 50 },
+                            limit: { type: "integer", example: 100 },
+                        },
+                        required: ["total", "limit"],
+                    },
+                },
+                required: ["success", "data", "pagination"],
+            },
+            CheckoutResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: {
+                        allOf: [{ $ref: "#/components/schemas/CheckoutSnapshot" }],
+                    },
+                    message: { type: "string", example: "Cart validated for checkout" },
+                },
+                required: ["success", "data", "message"],
+            },
+            ValidateResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: { $ref: "#/components/schemas/CartValidation" },
+                },
+                required: ["success", "data"],
+            },
+            AbandonedResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: { $ref: "#/components/schemas/AbandonedCart" },
+                    message: { type: "string", example: "Cart marked as abandoned" },
+                },
+                required: ["success", "data", "message"],
             },
         },
     },
@@ -2763,6 +3100,397 @@ const swaggerSpec = {
                     },
                     "400": { $ref: "#/components/responses/BadRequest" },
                     "401": { $ref: "#/components/responses/Unauthorized" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        // ✅ CART PATHS
+        "/api/v1/carts/guest": {
+            post: {
+                tags: ["Carts"],
+                summary: "Create guest cart",
+                security: [],
+                description: "Tạo giỏ hàng cho khách (không đăng nhập). Client gửi session_key (UUID v4).",
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/CreateGuestCartInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "201": {
+                        description: "Created",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/CartResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/carts/guest/{sessionKey}": {
+            get: {
+                tags: ["Carts"],
+                summary: "Get guest cart",
+                security: [],
+                parameters: [
+                    {
+                        in: "path",
+                        name: "sessionKey",
+                        required: true,
+                        schema: { type: "string", format: "uuid" },
+                        description: "Session key UUID v4",
+                    },
+                    {
+                        in: "query",
+                        name: "format",
+                        schema: { type: "string", enum: ["summary", "detail", "checkout"], default: "summary" },
+                        description: "Response format",
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/CartResponse" },
+                            },
+                        },
+                    },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/carts": {
+            get: {
+                tags: ["Carts"],
+                summary: "Get user cart",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        in: "query",
+                        name: "format",
+                        schema: { type: "string", enum: ["summary", "detail", "checkout"], default: "summary" },
+                        description: "Response format",
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/CartResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+            delete: {
+                tags: ["Carts"],
+                summary: "Clear cart",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        in: "query",
+                        name: "keep_discount",
+                        schema: { type: "boolean", default: false },
+                        description: "Keep promo code after clearing",
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/CartResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/carts/items": {
+            post: {
+                tags: ["Carts"],
+                summary: "Add item to cart",
+                security: [{ bearerAuth: [] }],
+                description: "Thêm sản phẩm vào giỏ hàng. Có thể dùng JWT hoặc ?session_key=UUID (cho khách).",
+                parameters: [
+                    {
+                        in: "query",
+                        name: "session_key",
+                        schema: { type: "string", format: "uuid" },
+                        description: "Session key cho giỏ khách (nếu không có JWT)",
+                    },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/AddToCartInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/CartResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/carts/items/{itemId}": {
+            patch: {
+                tags: ["Carts"],
+                summary: "Update item quantity",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        in: "path",
+                        name: "itemId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/UpdateCartItemInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/CartResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+            delete: {
+                tags: ["Carts"],
+                summary: "Remove item from cart",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        in: "path",
+                        name: "itemId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/CartResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/carts/discount": {
+            post: {
+                tags: ["Carts"],
+                summary: "Apply promo code",
+                security: [{ bearerAuth: [] }],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/ApplyDiscountInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/CartResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+            delete: {
+                tags: ["Carts"],
+                summary: "Remove discount",
+                security: [{ bearerAuth: [] }],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/CartResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/carts/merge": {
+            post: {
+                tags: ["Carts"],
+                summary: "Merge guest cart to user cart",
+                security: [{ bearerAuth: [] }],
+                description: "Gọi sau khi đăng nhập để merge giỏ khách vào giỏ người dùng.",
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/MergeCartInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/CartResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/carts/abandon": {
+            post: {
+                tags: ["Carts"],
+                summary: "Mark cart as abandoned",
+                security: [{ bearerAuth: [] }],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/AbandonedResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/carts/checkout": {
+            post: {
+                tags: ["Carts"],
+                summary: "Validate cart and create order snapshot",
+                security: [{ bearerAuth: [] }],
+                description: "Kiểm tra giỏ hàng, xác nhận stock, trả về snapshot để tạo order.",
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/CheckoutResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/carts/validate": {
+            get: {
+                tags: ["Carts"],
+                summary: "Validate cart (dry-run)",
+                security: [{ bearerAuth: [] }],
+                description: "Kiểm tra giỏ hàng mà không lưu thay đổi (dry-run checkout).",
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/ValidateResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+        "/api/v1/admin/carts/abandoned": {
+            get: {
+                tags: ["Carts"],
+                summary: "Get abandoned carts (admin)",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        in: "query",
+                        name: "days_ago",
+                        schema: { type: "integer", minimum: 1, default: 7 },
+                        description: "Abandoned for > N days",
+                    },
+                    {
+                        in: "query",
+                        name: "limit",
+                        schema: { type: "integer", minimum: 1, maximum: 500, default: 100 },
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/CartListResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
                     "500": { $ref: "#/components/responses/InternalError" },
                 },
             },

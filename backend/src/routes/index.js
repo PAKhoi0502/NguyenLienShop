@@ -11,7 +11,7 @@ const categoryRoutes = require("../modules/categories/category.routes");
 const productModuleRoutes = require("../modules/products/routes");
 
 // ===== FUTURE ROUTES (Placeholder) =====
-// const cartRoutes = require("../modules/carts/cart.routes");
+const cartRoutes = require("../modules/carts/cart.routes");
 // const orderRoutes = require("../modules/orders/order.routes");
 // const paymentRoutes = require("../modules/payments/payment.routes");
 
@@ -30,6 +30,9 @@ router.use("/user-addresses", userAddressRoutes);
 
 // ✅ Category routes
 router.use("/categories", categoryRoutes);
+
+// ✅ Mount cart routes at /carts prefix
+router.use("/carts", cartRoutes);
 
 // ✅ Product module routes (contains: products, variants, variant-units)
 // Routes structure:

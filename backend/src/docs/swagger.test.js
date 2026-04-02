@@ -1465,4 +1465,713 @@ describe("swaggerSpec", () => {
         expect(listResponse.properties.pagination.required).toEqual(["total", "limit"]);
     });
 
+    // ===== ORDERS TESTS =====
+
+    it("should define Orders tag", () => {
+        const orderTag = swaggerSpec.tags.find((tag) => tag.name === "Orders");
+        expect(orderTag).toBeDefined();
+        expect(orderTag.description).toContain("Quản lý đơn hàng");
+    });
+
+    it("should define order schemas correctly", () => {
+        // ✅ Core order schemas
+        expect(swaggerSpec.components.schemas.OrderAddressSnapshot).toBeDefined();
+        expect(swaggerSpec.components.schemas.OrderAddressSnapshot.required).toEqual([
+            "street",
+            "district",
+            "city",
+            "phone",
+            "recipient_name",
+        ]);
+
+        expect(swaggerSpec.components.schemas.OrderItemSnapshot).toBeDefined();
+        expect(swaggerSpec.components.schemas.OrderItemSnapshot.required).toEqual([
+            "id",
+            "product_id",
+            "variant_id",
+            "unit_id",
+            "product_name",
+            "sku",
+            "quantity_ordered",
+            "unit_price",
+            "line_total",
+        ]);
+
+        expect(swaggerSpec.components.schemas.OrderPricing).toBeDefined();
+        expect(swaggerSpec.components.schemas.OrderPricing.required).toEqual([
+            "subtotal",
+            "shipping_fee",
+            "discount_amount",
+            "total_amount",
+            "currency",
+        ]);
+
+        expect(swaggerSpec.components.schemas.OrderPayment).toBeDefined();
+        expect(swaggerSpec.components.schemas.OrderPayment.required).toEqual(["method", "status"]);
+        expect(swaggerSpec.components.schemas.OrderPayment.properties.method.enum).toEqual([
+            "COD",
+            "VNPAY",
+            "MOMO",
+            "CARD",
+        ]);
+
+        expect(swaggerSpec.components.schemas.OrderDiscount).toBeDefined();
+        expect(swaggerSpec.components.schemas.OrderDiscount.properties.type.enum).toEqual([
+            "percentage",
+            "fixed",
+        ]);
+
+        expect(swaggerSpec.components.schemas.OrderShipment).toBeDefined();
+        expect(swaggerSpec.components.schemas.OrderStatusHistoryRecord).toBeDefined();
+        expect(swaggerSpec.components.schemas.OrderFulfillment).toBeDefined();
+
+        // ✅ Main order schemas
+        expect(swaggerSpec.components.schemas.Order).toBeDefined();
+        expect(swaggerSpec.components.schemas.Order.required).toContain("id");
+        expect(swaggerSpec.components.schemas.Order.required).toContain("order_code");
+        expect(swaggerSpec.components.schemas.Order.required).toContain("user_id");
+        expect(swaggerSpec.components.schemas.Order.required).toContain("status");
+
+        expect(swaggerSpec.components.schemas.OrderDetail).toBeDefined();
+        expect(swaggerSpec.components.schemas.OrderListItem).toBeDefined();
+        expect(swaggerSpec.components.schemas.OrderTracking).toBeDefined();
+        expect(swaggerSpec.components.schemas.OrderStats).toBeDefined();
+
+        // ✅ Input schemas
+        expect(swaggerSpec.components.schemas.CreateOrderInput).toBeDefined();
+        expect(swaggerSpec.components.schemas.CreateOrderInput.required).toEqual([
+            "cart_id",
+            "address_snapshot",
+            "payment_method",
+        ]);
+
+        expect(swaggerSpec.components.schemas.UpdateOrderStatusInput).toBeDefined();
+        expect(swaggerSpec.components.schemas.UpdateOrderStatusInput.required).toEqual(["status"]);
+        expect(swaggerSpec.components.schemas.UpdateOrderStatusInput.properties.status.enum).toEqual([
+            "PENDING",
+            "PAID",
+            "PROCESSING",
+            "SHIPPED",
+            "DELIVERED",
+            "FAILED",
+            "CANCELED",
+        ]);
+
+        expect(swaggerSpec.components.schemas.AdminUpdateOrderInput).toBeDefined();
+        expect(swaggerSpec.components.schemas.FulfillItemInput).toBeDefined();
+        expect(swaggerSpec.components.schemas.FulfillItemInput.required).toEqual([
+            "item_id",
+            "quantity_fulfilled",
+        ]);
+
+        expect(swaggerSpec.components.schemas.RecordShipmentInput).toBeDefined();
+        expect(swaggerSpec.components.schemas.RecordShipmentInput.required).toEqual([
+            "carrier",
+            "tracking_code",
+        ]);
+
+        expect(swaggerSpec.components.schemas.CancelOrderInput).toBeDefined();
+        expect(swaggerSpec.components.schemas.CancelOrderInput.required).toEqual(["reason"]);
+
+        expect(swaggerSpec.components.schemas.WriteReviewInput).toBeDefined();
+        expect(swaggerSpec.components.schemas.WriteReviewInput.required).toEqual(["item_id", "rating"]);
+
+        // ✅ Response schemas
+        expect(swaggerSpec.components.schemas.OrderResponse).toBeDefined();
+        expect(swaggerSpec.components.schemas.OrderResponse.required).toEqual(["success", "data"]);
+
+        expect(swaggerSpec.components.schemas.OrderDetailResponse).toBeDefined();
+        expect(swaggerSpec.components.schemas.OrdersListResponse).toBeDefined();
+        expect(swaggerSpec.components.schemas.OrdersListResponse.required).toEqual([
+            "success",
+            "data",
+            "pagination",
+        ]);
+
+        expect(swaggerSpec.components.schemas.OrderTrackingResponse).toBeDefined();
+        expect(swaggerSpec.components.schemas.OrderStatsResponse).toBeDefined();
+    });
+
+    // ===== PUBLIC ORDER ENDPOINTS =====
+
+    it("should define track order endpoint correctly", () => {
+        const route = getPath("/api/v1/orders/track/{order_code}", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Orders");
+        expect(route.security).toEqual([]);
+        expect(route.description).toContain("công khai");
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "order_code",
+            required: true,
+            schema: { type: "string", pattern: "^ORD-[0-9]{8}-[A-Z0-9]{5}$" },
+        });
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/OrderTrackingResponse"
+        );
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+    });
+
+    // ===== CUSTOMER ORDER ENDPOINTS =====
+
+    it("should define create order endpoint correctly", () => {
+        const route = getPath("/api/v1/orders", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Orders");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("checkout");
+        expect(getSchemaRef(route.requestBody)).toBe("#/components/schemas/CreateOrderInput");
+        expect(route.responses["201"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/OrderResponse"
+        );
+        expect(route.responses["400"].$ref).toBe("#/components/responses/BadRequest");
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+        expect(route.responses["409"].$ref).toBe("#/components/responses/Conflict");
+    });
+
+    it("should define get user orders endpoint correctly", () => {
+        const route = getPath("/api/v1/orders", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Orders");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("lịch sử");
+        expect(route.parameters).toBeDefined();
+        expect(route.parameters.map((p) => p.name)).toContain("page");
+        expect(route.parameters.map((p) => p.name)).toContain("limit");
+        expect(route.parameters.map((p) => p.name)).toContain("status");
+        expect(route.parameters.map((p) => p.name)).toContain("payment_status");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/OrdersListResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+    });
+
+    it("should define get order detail endpoint correctly", () => {
+        const route = getPath("/api/v1/orders/{order_id}", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Orders");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("customer view");
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "order_id",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/OrderDetailResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+    });
+
+    it("should define cancel order endpoint correctly", () => {
+        const route = getPath("/api/v1/orders/{order_id}/cancel", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Orders");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("hủy");
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "order_id",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(getSchemaRef(route.requestBody)).toBe("#/components/schemas/CancelOrderInput");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/OrderDetailResponse"
+        );
+        expect(route.responses["400"].$ref).toBe("#/components/responses/BadRequest");
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["409"].$ref).toBe("#/components/responses/Conflict");
+    });
+
+    it("should define write review endpoint correctly", () => {
+        const route = getPath("/api/v1/orders/{order_id}/review", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Orders");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("review");
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "order_id",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(getSchemaRef(route.requestBody)).toBe("#/components/schemas/WriteReviewInput");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/OrderDetailResponse"
+        );
+        expect(route.responses["400"].$ref).toBe("#/components/responses/BadRequest");
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+        expect(route.responses["409"].$ref).toBe("#/components/responses/Conflict");
+    });
+
+    // ===== ADMIN ORDER ENDPOINTS =====
+
+    it("should define get all orders endpoint correctly", () => {
+        const route = getPath("/api/v1/admin/orders", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Orders");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("admin dashboard");
+        expect(route.parameters).toBeDefined();
+        expect(route.parameters.map((p) => p.name)).toContain("page");
+        expect(route.parameters.map((p) => p.name)).toContain("limit");
+        expect(route.parameters.map((p) => p.name)).toContain("status");
+        expect(route.parameters.map((p) => p.name)).toContain("user_id");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/OrdersListResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+    });
+
+    it("should define get order stats endpoint correctly", () => {
+        const route = getPath("/api/v1/admin/orders/stats", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Orders");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("thống kê");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/OrderStatsResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+    });
+
+    it("should define get admin order detail endpoint correctly", () => {
+        const route = getPath("/api/v1/admin/orders/{order_id}", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Orders");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("admin view");
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "order_id",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/OrderDetailResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+    });
+
+    it("should define update order status endpoint correctly", () => {
+        const route = getPath("/api/v1/admin/orders/{order_id}/status", "patch");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Orders");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("admin action");
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "order_id",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(getSchemaRef(route.requestBody)).toBe("#/components/schemas/UpdateOrderStatusInput");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/OrderDetailResponse"
+        );
+        expect(route.responses["400"].$ref).toBe("#/components/responses/BadRequest");
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+        expect(route.responses["409"].$ref).toBe("#/components/responses/Conflict");
+    });
+
+    it("should define admin update order endpoint correctly", () => {
+        const route = getPath("/api/v1/admin/orders/{order_id}", "patch");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Orders");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "order_id",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(getSchemaRef(route.requestBody)).toBe("#/components/schemas/AdminUpdateOrderInput");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/OrderDetailResponse"
+        );
+    });
+
+    it("should define fulfill items endpoint correctly", () => {
+        const route = getPath("/api/v1/admin/orders/{order_id}/fulfill", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Orders");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("warehouse");
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "order_id",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(getSchemaRef(route.requestBody)).toBe("#/components/schemas/FulfillItemInput");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/OrderDetailResponse"
+        );
+        expect(route.responses["400"].$ref).toBe("#/components/responses/BadRequest");
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+        expect(route.responses["409"].$ref).toBe("#/components/responses/Conflict");
+    });
+
+    it("should define record shipment endpoint correctly", () => {
+        const route = getPath("/api/v1/admin/orders/{order_id}/shipment", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Orders");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("shipment");
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "order_id",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(getSchemaRef(route.requestBody)).toBe("#/components/schemas/RecordShipmentInput");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/OrderResponse"
+        );
+        expect(route.responses["400"].$ref).toBe("#/components/responses/BadRequest");
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+        expect(route.responses["409"].$ref).toBe("#/components/responses/Conflict");
+    });
+
+    it("should define confirm delivery endpoint correctly", () => {
+        const route = getPath("/api/v1/admin/orders/{order_id}/deliver", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Orders");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("giao hàng");
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "order_id",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/OrderDetailResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+        expect(route.responses["409"].$ref).toBe("#/components/responses/Conflict");
+    });
+
+    // ===== ORDER SCHEMA VALIDATION =====
+
+    it("should validate OrderAddressSnapshot required fields", () => {
+        const addressSchema = swaggerSpec.components.schemas.OrderAddressSnapshot;
+
+        expect(addressSchema.properties.street.type).toBe("string");
+        expect(addressSchema.properties.district.type).toBe("string");
+        expect(addressSchema.properties.city.type).toBe("string");
+        expect(addressSchema.properties.phone.type).toBe("string");
+        expect(addressSchema.properties.recipient_name.type).toBe("string");
+    });
+
+    it("should validate OrderItemSnapshot snapshot fields", () => {
+        const itemSchema = swaggerSpec.components.schemas.OrderItemSnapshot;
+
+        // ✅ Immutable snapshots
+        expect(itemSchema.properties.product_name.type).toBe("string");
+        expect(itemSchema.properties.variant_label.type).toBe("string");
+        expect(itemSchema.properties.sku.type).toBe("string");
+        expect(itemSchema.properties.unit_label.type).toBe("string");
+        expect(itemSchema.properties.pack_size.type).toBe("integer");
+
+        // ✅ Pricing snapshot
+        expect(itemSchema.properties.unit_price.type).toBe("number");
+        expect(itemSchema.properties.line_total.type).toBe("number");
+
+        // ✅ Tracking
+        expect(itemSchema.properties.quantity_ordered.type).toBe("integer");
+        expect(itemSchema.properties.quantity_fulfilled.type).toBe("integer");
+    });
+
+    it("should validate OrderPricing calculations", () => {
+        const pricingSchema = swaggerSpec.components.schemas.OrderPricing;
+
+        expect(pricingSchema.properties.subtotal.type).toBe("number");
+        expect(pricingSchema.properties.shipping_fee.type).toBe("number");
+        expect(pricingSchema.properties.discount_amount.type).toBe("number");
+        expect(pricingSchema.properties.total_amount.type).toBe("number");
+        expect(pricingSchema.properties.currency.enum).toContain("VND");
+    });
+
+    it("should validate OrderPayment method enum", () => {
+        const paymentSchema = swaggerSpec.components.schemas.OrderPayment;
+
+        expect(paymentSchema.properties.method.enum).toEqual([
+            "COD",
+            "VNPAY",
+            "MOMO",
+            "CARD",
+        ]);
+        expect(paymentSchema.properties.status.enum).toEqual([
+            "PENDING",
+            "PAID",
+            "FAILED",
+            "REFUNDED",
+        ]);
+    });
+
+    it("should validate Order main schema structure", () => {
+        const orderSchema = swaggerSpec.components.schemas.Order;
+
+        expect(orderSchema.properties.id.pattern).toBe("^[a-fA-F0-9]{24}$");
+        expect(orderSchema.properties.order_code.pattern).toBe("^ORD-[0-9]{8}-[A-Z0-9]{5}$");
+        expect(orderSchema.properties.status.enum).toEqual([
+            "PENDING",
+            "PAID",
+            "PROCESSING",
+            "SHIPPED",
+            "DELIVERED",
+            "FAILED",
+            "CANCELED",
+        ]);
+    });
+
+    it("should validate OrderTracking public response", () => {
+        const trackingSchema = swaggerSpec.components.schemas.OrderTracking;
+
+        expect(trackingSchema.properties.order_code).toBeDefined();
+        expect(trackingSchema.properties.status).toBeDefined();
+        expect(trackingSchema.properties.status_label).toBeDefined();
+        expect(trackingSchema.properties.timeline).toBeDefined();
+        expect(trackingSchema.properties.shipment).toBeDefined();
+        expect(trackingSchema.properties.estimated_delivery).toBeDefined();
+    });
+
+    it("should validate CreateOrderInput address snapshot", () => {
+        const createSchema = swaggerSpec.components.schemas.CreateOrderInput;
+
+        expect(createSchema.properties.cart_id.pattern).toBe("^[a-fA-F0-9]{24}$");
+        expect(createSchema.properties.address_snapshot.$ref).toBe(
+            "#/components/schemas/OrderAddressSnapshot"
+        );
+        expect(createSchema.properties.payment_method.enum).toEqual([
+            "COD",
+            "VNPAY",
+            "MOMO",
+            "CARD",
+        ]);
+        expect(createSchema.properties.customer_notes.maxLength).toBe(500);
+    });
+
+    it("should validate UpdateOrderStatusInput status enum", () => {
+        const updateSchema = swaggerSpec.components.schemas.UpdateOrderStatusInput;
+
+        expect(updateSchema.properties.status.enum).toEqual([
+            "PENDING",
+            "PAID",
+            "PROCESSING",
+            "SHIPPED",
+            "DELIVERED",
+            "FAILED",
+            "CANCELED",
+        ]);
+        expect(updateSchema.properties.note.maxLength).toBe(500);
+    });
+
+    it("should validate FulfillItemInput constraints", () => {
+        const fulfillSchema = swaggerSpec.components.schemas.FulfillItemInput;
+
+        expect(fulfillSchema.properties.item_id.pattern).toBe("^[a-fA-F0-9]{24}$");
+        expect(fulfillSchema.properties.quantity_fulfilled.minimum).toBe(1);
+        expect(fulfillSchema.properties.quantity_fulfilled.maximum).toBe(1000000);
+    });
+
+    it("should validate RecordShipmentInput carrier and tracking", () => {
+        const shipmentSchema = swaggerSpec.components.schemas.RecordShipmentInput;
+
+        expect(shipmentSchema.properties.carrier.minLength).toBe(1);
+        expect(shipmentSchema.properties.carrier.maxLength).toBe(50);
+        expect(shipmentSchema.properties.tracking_code.minLength).toBe(1);
+        expect(shipmentSchema.properties.tracking_code.maxLength).toBe(100);
+    });
+
+    it("should validate CancelOrderInput reason", () => {
+        const cancelSchema = swaggerSpec.components.schemas.CancelOrderInput;
+
+        expect(cancelSchema.properties.reason.minLength).toBe(1);
+        expect(cancelSchema.properties.reason.maxLength).toBe(500);
+    });
+
+    it("should validate WriteReviewInput rating range", () => {
+        const reviewSchema = swaggerSpec.components.schemas.WriteReviewInput;
+
+        expect(reviewSchema.properties.item_id.pattern).toBe("^[a-fA-F0-9]{24}$");
+        expect(reviewSchema.properties.rating.minimum).toBe(1);
+        expect(reviewSchema.properties.rating.maximum).toBe(5);
+        expect(reviewSchema.properties.comment.maxLength).toBe(500);
+    });
+
+    it("should validate OrderStats response structure", () => {
+        const statsSchema = swaggerSpec.components.schemas.OrderStats;
+
+        expect(statsSchema.properties.totalOrders.type).toBe("integer");
+        expect(statsSchema.properties.totalRevenue.type).toBe("number");
+        expect(statsSchema.properties.statusBreakdown).toBeDefined();
+        expect(statsSchema.properties.paymentBreakdown).toBeDefined();
+    });
+
+    // ===== ORDER ENDPOINT VALIDATION =====
+
+    it("should validate all order endpoints return proper error codes", () => {
+        const orderEndpoints = [
+            ["/api/v1/orders/track/{order_code}", "get"],
+            ["/api/v1/orders", "post"],
+            ["/api/v1/orders", "get"],
+            ["/api/v1/orders/{order_id}", "get"],
+            ["/api/v1/orders/{order_id}/cancel", "post"],
+            ["/api/v1/orders/{order_id}/review", "post"],
+            ["/api/v1/admin/orders", "get"],
+            ["/api/v1/admin/orders/stats", "get"],
+            ["/api/v1/admin/orders/{order_id}", "get"],
+            ["/api/v1/admin/orders/{order_id}/status", "patch"],
+            ["/api/v1/admin/orders/{order_id}", "patch"],
+            ["/api/v1/admin/orders/{order_id}/fulfill", "post"],
+            ["/api/v1/admin/orders/{order_id}/shipment", "post"],
+            ["/api/v1/admin/orders/{order_id}/deliver", "post"],
+        ];
+
+        orderEndpoints.forEach(([path, method]) => {
+            const route = getPath(path, method);
+            expect(route).toBeDefined();
+            expect(route.responses["500"]).toBeDefined();
+        });
+    });
+
+    it("should validate public order endpoint has no auth requirement", () => {
+        const route = getPath("/api/v1/orders/track/{order_code}", "get");
+
+        expect(route.security).toEqual([]);
+    });
+
+    it("should validate customer order endpoints require authentication", () => {
+        const customerEndpoints = [
+            ["/api/v1/orders", "post"],
+            ["/api/v1/orders", "get"],
+            ["/api/v1/orders/{order_id}", "get"],
+            ["/api/v1/orders/{order_id}/cancel", "post"],
+            ["/api/v1/orders/{order_id}/review", "post"],
+        ];
+
+        customerEndpoints.forEach(([path, method]) => {
+            const route = getPath(path, method);
+            expect(route.security).toEqual([{ bearerAuth: [] }]);
+        });
+    });
+
+    it("should validate admin order endpoints require admin auth", () => {
+        const adminEndpoints = [
+            ["/api/v1/admin/orders", "get"],
+            ["/api/v1/admin/orders/stats", "get"],
+            ["/api/v1/admin/orders/{order_id}", "get"],
+            ["/api/v1/admin/orders/{order_id}/status", "patch"],
+            ["/api/v1/admin/orders/{order_id}", "patch"],
+            ["/api/v1/admin/orders/{order_id}/fulfill", "post"],
+            ["/api/v1/admin/orders/{order_id}/shipment", "post"],
+            ["/api/v1/admin/orders/{order_id}/deliver", "post"],
+        ];
+
+        adminEndpoints.forEach(([path, method]) => {
+            const route = getPath(path, method);
+            expect(route.security).toEqual([{ bearerAuth: [] }]);
+        });
+    });
+
+    it("should validate order pagination response format", () => {
+        const listResponse = swaggerSpec.components.schemas.OrdersListResponse;
+
+        expect(listResponse.properties.pagination).toBeDefined();
+        expect(listResponse.properties.pagination.properties.page.type).toBe("integer");
+        expect(listResponse.properties.pagination.properties.limit.type).toBe("integer");
+        expect(listResponse.properties.pagination.properties.total.type).toBe("integer");
+        expect(listResponse.properties.pagination.properties.totalPages.type).toBe("integer");
+    });
+
+    it("should validate order list items have required fields", () => {
+        const listItemSchema = swaggerSpec.components.schemas.OrderListItem;
+
+        expect(listItemSchema.required).toContain("id");
+        expect(listItemSchema.required).toContain("order_code");
+        expect(listItemSchema.required).toContain("item_count");
+        expect(listItemSchema.required).toContain("total_amount");
+        expect(listItemSchema.required).toContain("status");
+        expect(listItemSchema.required).toContain("created_at");
+    });
+
+    it("should validate order status history tracking", () => {
+        const historySchema = swaggerSpec.components.schemas.OrderStatusHistoryRecord;
+
+        expect(historySchema.properties.from.nullable).toBe(true);
+        expect(historySchema.properties.to).toBeDefined();
+        expect(historySchema.properties.changed_at.type).toBe("string");
+        expect(historySchema.properties.changed_at.format).toBe("date-time");
+        expect(historySchema.properties.changed_by_id.nullable).toBe(true);
+    });
+
+    it("should validate order fulfillment tracking", () => {
+        const fulfillmentSchema = swaggerSpec.components.schemas.OrderFulfillment;
+
+        expect(fulfillmentSchema.properties.total_ordered.type).toBe("integer");
+        expect(fulfillmentSchema.properties.total_fulfilled.type).toBe("integer");
+        expect(fulfillmentSchema.properties.pending_items.type).toBe("integer");
+    });
+
+    it("should validate order response uses proper DTO refs", () => {
+        const orderResponse = swaggerSpec.components.schemas.OrderResponse;
+
+        expect(orderResponse.properties.data.allOf).toBeDefined();
+        expect(orderResponse.properties.data.allOf[0].$ref).toBe(
+            "#/components/schemas/Order"
+        );
+    });
+
+    it("should validate order detail response extends order schema", () => {
+        const detailResponse = swaggerSpec.components.schemas.OrderDetailResponse;
+
+        expect(detailResponse.properties.data.allOf).toBeDefined();
+    });
+
+    it("should validate order address snapshot is reused across order items", () => {
+        const orderSchema = swaggerSpec.components.schemas.Order;
+        const inputSchema = swaggerSpec.components.schemas.CreateOrderInput;
+
+        expect(orderSchema.properties.address_snapshot.$ref).toBe(
+            "#/components/schemas/OrderAddressSnapshot"
+        );
+        expect(inputSchema.properties.address_snapshot.allOf).toBeDefined();
+    });
+
 });

@@ -48,6 +48,10 @@ const swaggerSpec = {
             description:
                 "Quản lý giỏ hàng: tạo giỏ khách, lấy giỏ, thêm/cập nhật/xoá item, áp dụng discount, merge giỏ, checkout.",
         },
+        {
+            name: "Orders",
+            description: "Quản lý đơn hàng: tạo từ cart, theo dõi, hủy, review, và quản lý admin.",
+        },
     ],
     components: {
         securitySchemes: {
@@ -1660,6 +1664,482 @@ const swaggerSpec = {
                     message: { type: "string", example: "Cart marked as abandoned" },
                 },
                 required: ["success", "data", "message"],
+            },
+
+            // ✅ ORDER SCHEMAS
+            OrderAddressSnapshot: {
+                type: "object",
+                properties: {
+                    street: { type: "string", example: "123 Đường Lê Lợi" },
+                    district: { type: "string", example: "Quận 1" },
+                    city: { type: "string", example: "TP. Hồ Chí Minh" },
+                    postal_code: { type: "string", example: "700000", nullable: true },
+                    country: { type: "string", default: "Vietnam", example: "Vietnam" },
+                    phone: { type: "string", example: "0912345678" },
+                    recipient_name: { type: "string", example: "Nguyễn Văn A" },
+                },
+                required: ["street", "district", "city", "phone", "recipient_name"],
+            },
+
+            OrderItemSnapshot: {
+                type: "object",
+                properties: {
+                    id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    product_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    variant_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    unit_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+
+                    product_name: { type: "string", example: "Túi Bao Trái" },
+                    product_image: { type: "string", format: "uri", nullable: true },
+                    variant_label: { type: "string", example: "20x25 - Vải Không Dệt" },
+                    sku: { type: "string", example: "BAG-20X25-POLYESTER" },
+                    unit_label: { type: "string", example: "Gói 100" },
+                    pack_size: { type: "integer", example: 100 },
+
+                    quantity_ordered: { type: "integer", example: 10 },
+                    quantity_fulfilled: { type: "integer", example: 10 },
+
+                    unit_price: { type: "number", example: 180000 },
+                    line_total: { type: "number", example: 1800000 },
+
+                    review_status: { type: "string", enum: ["pending", "reviewed"], example: "pending" },
+                },
+                required: ["id", "product_id", "variant_id", "unit_id", "product_name", "sku", "quantity_ordered", "unit_price", "line_total"],
+            },
+
+            OrderPricing: {
+                type: "object",
+                properties: {
+                    subtotal: { type: "number", example: 1800000 },
+                    shipping_fee: { type: "number", example: 0 },
+                    discount_amount: { type: "number", example: 180000 },
+                    total_amount: { type: "number", example: 1620000 },
+                    currency: { type: "string", enum: ["VND", "USD", "EUR"], default: "VND" },
+                },
+                required: ["subtotal", "shipping_fee", "discount_amount", "total_amount", "currency"],
+            },
+
+            OrderDiscount: {
+                type: "object",
+                properties: {
+                    code: { type: "string", example: "SALE10" },
+                    type: { type: "string", enum: ["percentage", "fixed"], example: "percentage" },
+                    value: { type: "number", example: 10 },
+                    scope: { type: "string", enum: ["ORDER", "ITEM"], default: "ORDER" },
+                    applied_amount: { type: "number", example: 180000 },
+                },
+                required: ["type", "value", "scope", "applied_amount"],
+            },
+
+            OrderPayment: {
+                type: "object",
+                properties: {
+                    method: { type: "string", enum: ["COD", "VNPAY", "MOMO", "CARD"], example: "COD" },
+                    status: { type: "string", enum: ["PENDING", "PAID", "FAILED", "REFUNDED"], example: "PENDING" },
+                    paid_at: { type: "string", format: "date-time", nullable: true },
+                    refunded_at: { type: "string", format: "date-time", nullable: true },
+                },
+                required: ["method", "status"],
+            },
+
+            OrderShipment: {
+                type: "object",
+                properties: {
+                    carrier: { type: "string", example: "GHN" },
+                    tracking_code: { type: "string", example: "100123456789" },
+                    shipped_at: { type: "string", format: "date-time", nullable: true },
+                    delivered_at: { type: "string", format: "date-time", nullable: true },
+                },
+            },
+
+            OrderStatusHistoryRecord: {
+                type: "object",
+                properties: {
+                    from: { type: "string", enum: ["PENDING", "PAID", "PROCESSING", "SHIPPED", "DELIVERED", "FAILED", "CANCELED"], nullable: true },
+                    to: { type: "string", enum: ["PENDING", "PAID", "PROCESSING", "SHIPPED", "DELIVERED", "FAILED", "CANCELED"] },
+                    from_label: { type: "string", example: "Đang chờ thanh toán" },
+                    to_label: { type: "string", example: "Đã thanh toán" },
+                    changed_at: { type: "string", format: "date-time" },
+                    changed_at_formatted: { type: "string", example: "15/04/2024 10:30:00" },
+                    changed_by_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$", nullable: true },
+                    note: { type: "string", nullable: true },
+                    is_system: { type: "boolean", example: false },
+                },
+                required: ["to", "changed_at"],
+            },
+
+            OrderFulfillment: {
+                type: "object",
+                properties: {
+                    total_ordered: { type: "integer", example: 1000 },
+                    total_fulfilled: { type: "integer", example: 1000 },
+                    pending_items: { type: "integer", example: 0 },
+                },
+                required: ["total_ordered", "total_fulfilled", "pending_items"],
+            },
+
+            Order: {
+                type: "object",
+                properties: {
+                    id: { type: "string", pattern: "^[a-fA-F0-9]{24}$", example: "507f1f77bcf86cd799439020" },
+                    order_code: { type: "string", example: "ORD-20240415-ABC12", pattern: "^ORD-[0-9]{8}-[A-Z0-9]{5}$" },
+                    user_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+
+                    address_snapshot: { $ref: "#/components/schemas/OrderAddressSnapshot" },
+                    items: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/OrderItemSnapshot" },
+                    },
+
+                    pricing: { $ref: "#/components/schemas/OrderPricing" },
+                    discount: {
+                        allOf: [{ $ref: "#/components/schemas/OrderDiscount" }],
+                        nullable: true,
+                    },
+
+                    payment: { $ref: "#/components/schemas/OrderPayment" },
+                    shipment: {
+                        allOf: [{ $ref: "#/components/schemas/OrderShipment" }],
+                        nullable: true,
+                    },
+
+                    status: { type: "string", enum: ["PENDING", "PAID", "PROCESSING", "SHIPPED", "DELIVERED", "FAILED", "CANCELED"], example: "PENDING" },
+                    status_history: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/OrderStatusHistoryRecord" },
+                    },
+
+                    customer_notes: { type: "string", nullable: true, example: "Giao buổi sáng nếu được" },
+
+                    created_at: { type: "string", format: "date-time" },
+                    updated_at: { type: "string", format: "date-time" },
+                },
+                required: ["id", "order_code", "user_id", "address_snapshot", "items", "pricing", "payment", "status", "created_at", "updated_at"],
+            },
+
+            OrderDetail: {
+                allOf: [
+                    { $ref: "#/components/schemas/Order" },
+                    {
+                        type: "object",
+                        properties: {
+                            fulfillment: { $ref: "#/components/schemas/OrderFulfillment" },
+                            payment_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$", nullable: true },
+                            shipment_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$", nullable: true },
+                            payment_expires_at: { type: "string", format: "date-time", nullable: true },
+                        },
+                    },
+                ],
+            },
+
+            OrderListItem: {
+                type: "object",
+                properties: {
+                    id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    order_code: { type: "string", example: "ORD-20240415-ABC12" },
+                    item_count: { type: "integer", example: 5 },
+                    total_items: { type: "integer", example: 500 },
+                    total_amount: { type: "number", example: 1620000 },
+                    status: { type: "string", enum: ["PENDING", "PAID", "PROCESSING", "SHIPPED", "DELIVERED", "FAILED", "CANCELED"] },
+                    payment_status: { type: "string", enum: ["PENDING", "PAID", "FAILED", "REFUNDED"] },
+                    created_at: { type: "string", format: "date-time" },
+                    delivered_at: { type: "string", format: "date-time", nullable: true },
+                },
+                required: ["id", "order_code", "item_count", "total_amount", "status", "created_at"],
+            },
+
+            OrderTracking: {
+                type: "object",
+                properties: {
+                    order_code: { type: "string", example: "ORD-20240415-ABC12" },
+                    status: { type: "string", enum: ["PENDING", "PAID", "PROCESSING", "SHIPPED", "DELIVERED", "FAILED", "CANCELED"] },
+                    status_label: { type: "string", example: "Đã giao" },
+                    timeline: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            properties: {
+                                status: { type: "string" },
+                                status_label: { type: "string" },
+                                timestamp: { type: "string", format: "date-time" },
+                                timestamp_formatted: { type: "string" },
+                                completed: { type: "boolean" },
+                            },
+                        },
+                    },
+                    shipment: {
+                        allOf: [{ $ref: "#/components/schemas/OrderShipment" }],
+                        nullable: true,
+                    },
+                    estimated_delivery: { type: "string", example: "20/04/2024" },
+                },
+                required: ["order_code", "status", "status_label", "timeline"],
+            },
+
+            OrderStats: {
+                type: "object",
+                properties: {
+                    totalOrders: { type: "integer", example: 1250 },
+                    totalRevenue: { type: "number", example: 2500000000 },
+                    statusBreakdown: {
+                        type: "object",
+                        properties: {
+                            PENDING: { type: "integer", example: 12 },
+                            PAID: { type: "integer", example: 150 },
+                            PROCESSING: { type: "integer", example: 45 },
+                            SHIPPED: { type: "integer", example: 120 },
+                            DELIVERED: { type: "integer", example: 920 },
+                            FAILED: { type: "integer", example: 3 },
+                        },
+                    },
+                    paymentBreakdown: {
+                        type: "object",
+                        properties: {
+                            PENDING: { type: "integer", example: 12 },
+                            PAID: { type: "integer", example: 1230 },
+                            FAILED: { type: "integer", example: 8 },
+                        },
+                    },
+                },
+                required: ["totalOrders", "totalRevenue", "statusBreakdown", "paymentBreakdown"],
+            },
+
+            // ✅ REQUEST SCHEMAS
+            CreateOrderInput: {
+                type: "object",
+                properties: {
+                    cart_id: {
+                        type: "string",
+                        pattern: "^[a-fA-F0-9]{24}$",
+                        description: "ID của giỏ hàng cần checkout",
+                        example: "507f1f77bcf86cd799439016",
+                    },
+                    address_snapshot: {
+                        $ref: "#/components/schemas/OrderAddressSnapshot",
+                        allOf: [
+                            { $ref: "#/components/schemas/OrderAddressSnapshot" }
+                        ]
+                    },
+                    payment_method: {
+                        type: "string",
+                        enum: ["COD", "VNPAY", "MOMO", "CARD"],
+                        description: "Phương thức thanh toán",
+                        example: "COD",
+                    },
+                    customer_notes: {
+                        type: "string",
+                        maxLength: 500,
+                        description: "Ghi chú từ khách",
+                        example: "Giao buổi sáng nếu được",
+                    },
+                    shipping_fee: {
+                        type: "number",
+                        minimum: 0,
+                        default: 0,
+                        description: "Phí vận chuyển",
+                    },
+                    currency: {
+                        type: "string",
+                        enum: ["VND", "USD", "EUR"],
+                        default: "VND",
+                        description: "Tiền tệ",
+                    },
+                },
+                required: ["cart_id", "address_snapshot", "payment_method"],
+            },
+
+            UpdateOrderStatusInput: {
+                type: "object",
+                properties: {
+                    status: {
+                        type: "string",
+                        enum: ["PENDING", "PAID", "PROCESSING", "SHIPPED", "DELIVERED", "FAILED", "CANCELED"],
+                        description: "Trạng thái mới",
+                        example: "PROCESSING",
+                    },
+                    note: {
+                        type: "string",
+                        maxLength: 500,
+                        description: "Ghi chú",
+                        example: "Sent to warehouse for fulfillment",
+                    },
+                },
+                required: ["status"],
+            },
+
+            AdminUpdateOrderInput: {
+                type: "object",
+                properties: {
+                    status: {
+                        type: "string",
+                        enum: ["PENDING", "PAID", "PROCESSING", "SHIPPED", "DELIVERED", "FAILED", "CANCELED"],
+                        description: "Trạng thái mới (tùy chọn)",
+                    },
+                    admin_notes: {
+                        type: "string",
+                        maxLength: 1000,
+                        description: "Ghi chú admin (tùy chọn)",
+                        example: "Customer requested priority shipping",
+                    },
+                },
+            },
+
+            FulfillItemInput: {
+                type: "object",
+                properties: {
+                    item_id: {
+                        type: "string",
+                        pattern: "^[a-fA-F0-9]{24}$",
+                        description: "ID của item trong order",
+                        example: "507f1f77bcf86cd799439021",
+                    },
+                    quantity_fulfilled: {
+                        type: "integer",
+                        minimum: 1,
+                        maximum: 1000000,
+                        description: "Số gói cần đánh dấu là fulfilled",
+                        example: 10,
+                    },
+                },
+                required: ["item_id", "quantity_fulfilled"],
+            },
+
+            RecordShipmentInput: {
+                type: "object",
+                properties: {
+                    carrier: {
+                        type: "string",
+                        minLength: 1,
+                        maxLength: 50,
+                        description: "Tên công ty vận chuyển",
+                        example: "GHN",
+                    },
+                    tracking_code: {
+                        type: "string",
+                        minLength: 1,
+                        maxLength: 100,
+                        description: "Mã tracking từ công ty vận chuyển",
+                        example: "100123456789",
+                    },
+                },
+                required: ["carrier", "tracking_code"],
+            },
+
+            CancelOrderInput: {
+                type: "object",
+                properties: {
+                    reason: {
+                        type: "string",
+                        minLength: 1,
+                        maxLength: 500,
+                        description: "Lý do hủy đơn",
+                        example: "Mình đặt nhầm size",
+                    },
+                },
+                required: ["reason"],
+            },
+
+            WriteReviewInput: {
+                type: "object",
+                properties: {
+                    item_id: {
+                        type: "string",
+                        pattern: "^[a-fA-F0-9]{24}$",
+                        description: "ID của item cần review",
+                        example: "507f1f77bcf86cd799439021",
+                    },
+                    rating: {
+                        type: "integer",
+                        minimum: 1,
+                        maximum: 5,
+                        description: "Đánh giá sao (1-5)",
+                        example: 5,
+                    },
+                    comment: {
+                        type: "string",
+                        maxLength: 500,
+                        description: "Bình luận (tùy chọn)",
+                        example: "Sản phẩm chất lượng, giao hàng nhanh",
+                    },
+                },
+                required: ["item_id", "rating"],
+            },
+
+            // ✅ RESPONSE SCHEMAS
+            OrderResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean" },
+                    data: {
+                        allOf: [
+                            { $ref: "#/components/schemas/Order" }
+                        ]
+                    }
+                },
+                required: ["success", "data"]
+            },
+
+            OrderDetailResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean" },
+                    data: {
+                        allOf: [
+                            { $ref: "#/components/schemas/Order" },
+                            {
+                                type: "object",
+                                properties: {
+                                    items: {
+                                        type: "array",
+                                        items: {
+                                            $ref: "#/components/schemas/OrderItemSnapshot"
+                                        }
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            },
+
+            OrdersListResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/OrderListItem" },
+                    },
+                    pagination: {
+                        type: "object",
+                        properties: {
+                            page: { type: "integer", minimum: 1, example: 1 },
+                            limit: { type: "integer", minimum: 1, maximum: 100, example: 20 },
+                            total: { type: "integer", example: 45 },
+                            totalPages: { type: "integer", example: 3 },
+                        },
+                        required: ["page", "limit", "total", "totalPages"],
+                    },
+                },
+                required: ["success", "data", "pagination"],
+            },
+
+            OrderTrackingResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: { $ref: "#/components/schemas/OrderTracking" },
+                },
+                required: ["success", "data"],
+            },
+
+            OrderStatsResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: { $ref: "#/components/schemas/OrderStats" },
+                },
+                required: ["success", "data"],
             },
         },
     },
@@ -3491,6 +3971,591 @@ const swaggerSpec = {
                     },
                     "401": { $ref: "#/components/responses/Unauthorized" },
                     "403": { $ref: "#/components/responses/Forbidden" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        // ===== PUBLIC ENDPOINTS =====
+
+        "/api/v1/orders/track/{order_code}": {
+            get: {
+                tags: ["Orders"],
+                summary: "Public order tracking",
+                security: [],
+                description: "Theo dõi đơn hàng công khai (không cần xác thực). Trả về status, timeline, shipment info.",
+                parameters: [
+                    {
+                        in: "path",
+                        name: "order_code",
+                        required: true,
+                        schema: { type: "string", pattern: "^ORD-[0-9]{8}-[A-Z0-9]{5}$", example: "ORD-20240415-ABC12" },
+                        description: "Order code (format: ORD-YYYYMMDD-XXXXX)",
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/OrderTrackingResponse" },
+                            },
+                        },
+                    },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        // ===== CUSTOMER ENDPOINTS =====
+
+        "/api/v1/orders": {
+            post: {
+                tags: ["Orders"],
+                summary: "Create order from cart",
+                security: [{ bearerAuth: [] }],
+                description: "Tạo đơn hàng từ giỏ hàng (checkout). Deduction stock ATOMIC tại đây.",
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/CreateOrderInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "201": {
+                        description: "Created",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/OrderResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "409": { $ref: "#/components/responses/Conflict" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+            get: {
+                tags: ["Orders"],
+                summary: "Get user's order history",
+                security: [{ bearerAuth: [] }],
+                description: "Lấy lịch sử đơn hàng của người dùng (pagination + filtering)",
+                parameters: [
+                    {
+                        in: "query",
+                        name: "page",
+                        schema: { type: "integer", minimum: 1, default: 1 },
+                        description: "Trang (default 1)",
+                    },
+                    {
+                        in: "query",
+                        name: "limit",
+                        schema: { type: "integer", minimum: 1, maximum: 100, default: 20 },
+                        description: "Số item mỗi trang (max 100)",
+                    },
+                    {
+                        in: "query",
+                        name: "status",
+                        schema: { type: "string", example: "DELIVERED,SHIPPED" },
+                        description: "Filter theo status (comma-separated)",
+                    },
+                    {
+                        in: "query",
+                        name: "payment_status",
+                        schema: { type: "string", enum: ["PENDING", "PAID", "FAILED", "REFUNDED"] },
+                        description: "Filter theo payment status",
+                    },
+                    {
+                        in: "query",
+                        name: "date_from",
+                        schema: { type: "string", format: "date" },
+                        description: "Từ ngày (ISO date)",
+                    },
+                    {
+                        in: "query",
+                        name: "date_to",
+                        schema: { type: "string", format: "date" },
+                        description: "Đến ngày (ISO date)",
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/OrdersListResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/orders/{order_id}": {
+            get: {
+                tags: ["Orders"],
+                summary: "Get order detail",
+                security: [{ bearerAuth: [] }],
+                description: "Lấy chi tiết đơn hàng (customer view - ẩn dữ liệu admin).",
+                parameters: [
+                    {
+                        in: "path",
+                        name: "order_id",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                        description: "Order ID",
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/OrderDetailResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/orders/{order_id}/cancel": {
+            post: {
+                tags: ["Orders"],
+                summary: "Cancel order",
+                security: [{ bearerAuth: [] }],
+                description: "Hủy đơn hàng (khách tự hủy). Chỉ có thể hủy PENDING/PAID. Restores stock.",
+                parameters: [
+                    {
+                        in: "path",
+                        name: "order_id",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/CancelOrderInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/OrderDetailResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "409": { $ref: "#/components/responses/Conflict" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/orders/{order_id}/review": {
+            post: {
+                tags: ["Orders"],
+                summary: "Write review for order item",
+                security: [{ bearerAuth: [] }],
+                description: "Viết review cho sản phẩm trong đơn hàng. Chỉ có thể review DELIVERED orders.",
+                parameters: [
+                    {
+                        in: "path",
+                        name: "order_id",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/WriteReviewInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/OrderDetailResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "409": { $ref: "#/components/responses/Conflict" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        // ===== ADMIN ENDPOINTS =====
+
+        "/api/v1/admin/orders": {
+            get: {
+                tags: ["Orders"],
+                summary: "Get all orders (admin)",
+                security: [{ bearerAuth: [] }],
+                description: "Lấy tất cả đơn hàng (admin dashboard với full transparency).",
+                parameters: [
+                    {
+                        in: "query",
+                        name: "page",
+                        schema: { type: "integer", minimum: 1, default: 1 },
+                    },
+                    {
+                        in: "query",
+                        name: "limit",
+                        schema: { type: "integer", minimum: 1, maximum: 100, default: 20 },
+                    },
+                    {
+                        in: "query",
+                        name: "status",
+                        schema: { type: "string" },
+                        description: "Filter theo status (comma-separated)",
+                    },
+                    {
+                        in: "query",
+                        name: "payment_status",
+                        schema: { type: "string", enum: ["PENDING", "PAID", "FAILED", "REFUNDED"] },
+                    },
+                    {
+                        in: "query",
+                        name: "user_id",
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                        description: "Filter theo customer ID",
+                    },
+                    {
+                        in: "query",
+                        name: "date_from",
+                        schema: { type: "string", format: "date" },
+                    },
+                    {
+                        in: "query",
+                        name: "date_to",
+                        schema: { type: "string", format: "date" },
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/OrdersListResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/admin/orders/stats": {
+            get: {
+                tags: ["Orders"],
+                summary: "Get order statistics",
+                security: [{ bearerAuth: [] }],
+                description: "Lấy thống kê đơn hàng cho dashboard (total, revenue, breakdown).",
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/OrderStatsResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/admin/orders/{order_id}": {
+            get: {
+                tags: ["Orders"],
+                summary: "Get order detail (admin)",
+                security: [{ bearerAuth: [] }],
+                description: "Lấy chi tiết đơn hàng (admin view - full data)",
+                parameters: [
+                    {
+                        in: "path",
+                        name: "order_id",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" }
+                    }
+                ],
+                responses: {
+                    "200": {
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    $ref: "#/components/schemas/OrderDetailResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" }
+                }
+            },
+            patch: {
+                tags: ["Orders"],
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        in: "path",
+                        name: "order_id",
+                        required: true,
+                        schema: {
+                            type: "string",
+                            pattern: "^[a-fA-F0-9]{24}$"
+                        }
+                    }
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: {
+                                $ref: "#/components/schemas/AdminUpdateOrderInput"
+                            }
+                        }
+                    }
+                },
+                responses: {
+                    "200": {
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    $ref: "#/components/schemas/OrderDetailResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": { $ref: "#/components/responses/InternalError" }
+                }
+            }
+        },
+
+        "/api/v1/admin/orders/{order_id}/status": {
+            patch: {
+                tags: ["Orders"],
+                summary: "Update order status",
+                security: [{ bearerAuth: [] }],
+                description: "Cập nhật trạng thái đơn hàng (admin action).",
+                parameters: [
+                    {
+                        in: "path",
+                        name: "order_id",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/UpdateOrderStatusInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/OrderDetailResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "409": { $ref: "#/components/responses/Conflict" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/admin/orders/{order_id}/admin-update": {
+            patch: {
+                tags: ["Orders"],
+                summary: "Update order details (admin)",
+                security: [{ bearerAuth: [] }],
+                description: "Cập nhật chi tiết đơn hàng (status, notes).",
+                parameters: [
+                    {
+                        in: "path",
+                        name: "order_id",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/AdminUpdateOrderInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/OrderDetailResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/admin/orders/{order_id}/fulfill": {
+            post: {
+                tags: ["Orders"],
+                summary: "Fulfill order items",
+                security: [{ bearerAuth: [] }],
+                description: "Đánh dấu items là fulfilled (warehouse action). Deducts từ reserved → sold ATOMIC.",
+                parameters: [
+                    {
+                        in: "path",
+                        name: "order_id",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/FulfillItemInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/OrderDetailResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "409": { $ref: "#/components/responses/Conflict" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/admin/orders/{order_id}/shipment": {
+            post: {
+                tags: ["Orders"],
+                summary: "Record shipment",
+                security: [{ bearerAuth: [] }],
+                description: "Ghi nhận shipment info (carrier + tracking code). Transitions PROCESSING → SHIPPED.",
+                parameters: [
+                    {
+                        in: "path",
+                        name: "order_id",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/RecordShipmentInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/OrderResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "409": { $ref: "#/components/responses/Conflict" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/admin/orders/{order_id}/deliver": {
+            post: {
+                tags: ["Orders"],
+                summary: "Confirm delivery",
+                security: [{ bearerAuth: [] }],
+                description: "Xác nhận giao hàng. Transitions SHIPPED → DELIVERED.",
+                parameters: [
+                    {
+                        in: "path",
+                        name: "order_id",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/OrderDetailResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "409": { $ref: "#/components/responses/Conflict" },
                     "500": { $ref: "#/components/responses/InternalError" },
                 },
             },

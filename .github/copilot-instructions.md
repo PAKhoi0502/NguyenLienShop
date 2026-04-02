@@ -75,7 +75,12 @@ const createProductSchema = z.object({
     name: z.string().min(2).max(200),
     category_id: z.string(),
 });
+// ✅ Modern pattern: validate({ body, params, query }) for multi-part validation
 router.post('/', validate({ body: createProductSchema }), controller.create);
+router.patch('/:id', validate({ params: idSchema, body: updateSchema }), controller.update);
+
+// ❌ DEPRECATED: Don't create custom inline validate functions (use middleware/validate.middleware.js)
+// Avoid: const validate = (schema) => (req, res, next) => { ... }
 ```
 
 ### Authentication & Authorization
@@ -86,6 +91,34 @@ router.post('/', validate({ body: createProductSchema }), controller.create);
   - `assertRole(req.user, ['ADMIN'])` - Throws if missing required role
 - **Token flow**: Access token (15m) in Authorization header; refresh token (1d) in HTTP-only cookie
 - **Token storage**: Refresh tokens hashed and stored in MongoDB for revocation checks
+
+### Validation Middleware Pattern (Multi-Part)
+
+The `validate()` middleware in `src/middlewares/validate.middleware.js` supports validating multiple request parts:
+
+```javascript
+// ✅ CORRECT: Validate body, params, and query
+router.patch(
+    '/orders/:order_id/review',
+    authenticate(),
+    validate({
+        params: getOrderByIdSchema,    // Validates req.params
+        body: writeReviewSchema,       // Validates req.body
+        // query: searchSchema         // Optional: validate query params
+    }),
+    OrderController.writeReview
+);
+
+// ✅ Validator will check all specified parts sequentially
+// ✅ Throws AppError(400, 'VALIDATION_ERROR') on first failure
+// ✅ Always use this centralized middleware, NOT custom inline validators
+```
+
+**Key pattern differences**:
+- **Query validation**: Most common for filtering/pagination (`page`, `limit`, `status`)
+- **Path params**: Separate validation for ID patterns (MongoDB ObjectId format)
+- **Body validation**: Primary validation for create/update operations
+- **Order matters**: Validate specific routes BEFORE dynamic routes to prevent param confusion
 
 ## Critical Business Rules & Invariants
 
@@ -257,6 +290,38 @@ const finalTotal = subtotal - appliedDiscount + shipping;
 - ✅ Cap discount ≤ subtotal
 - ✅ Don't apply to shipping/tax
 
+## Module File Organization
+
+**Standard module structure** (reference: `modules/users/`, `modules/categories/`):
+```
+modules/feature/
+├── feature.model.js           # Mongoose schema
+├── feature.service.js         # Business logic (static class)
+├── feature.controller.js       # Request handlers (asyncHandler-wrapped)
+├── feature.mapper.js          # DTO transformations
+├── feature.validator.js       # Zod validation schemas
+├── feature.routes.js          # Express router
+└── security/ (auth only)
+    ├── token.model.js
+    ├── token.service.js
+    └── token.security.js
+```
+
+**Nested module structure** (products has sub-resources - variants, units):
+```
+modules/products/
+├── product.{model,service,controller,mapper,validator}.js
+├── variant.{model,service,controller,mapper,validator}.js
+├── variant_unit.{model,service,controller,mapper,validator}.js
+└── routes/                     # Mounted at root via index.js
+    ├── index.js
+    ├── product.routes.js
+    ├── variant.routes.js
+    └── variant_unit.routes.js
+```
+
+**Key principle**: Use nested routes structure when feature has sub-resources (variants under products).
+
 ## Critical Patterns by Feature
 
 ### Products Module: Three-Level Hierarchy
@@ -345,6 +410,32 @@ Models use logical delete (not physical):
 - **Always excluded by default** - Mongoose middleware filters in all queries
 - Slug index is **partial** (allows reuse after soft-delete): `index: { slug: 1, is_deleted: 1 }`
 - When soft-deleting: set both `is_deleted = true` and `deleted_at = new Date()`
+
+### Reusable Validation Utilities
+
+**Validation helper utilities** in `src/utils/validator.util.js`:
+```javascript
+// ✅ Use for validating path parameters (e.g., MongoDB ObjectIds)
+const { validateObjectId } = require('../../utils/validator.util');
+
+// In controller:
+validateObjectId(req.params.userId);  // Throws AppError if invalid
+```
+
+**Pattern**: Combine Zod schemas (for structure) with utility validators (for specific checks):
+```javascript
+// validator.js - Define Zod schema
+const getUserAddressSchema = z.object({
+    addressId: z.string()
+        .refine(
+            (val) => mongoose.Types.ObjectId.isValid(val),
+            { message: 'Invalid address ID' }
+        )
+});
+
+// controller.js - Can additionally validate
+validateObjectId(req.params.addressId);  // Double-check or alternative pattern
+```
 
 ## Authentication & Token Security
 

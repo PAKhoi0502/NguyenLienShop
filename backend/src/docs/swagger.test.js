@@ -2174,4 +2174,713 @@ describe("swaggerSpec", () => {
         expect(inputSchema.properties.address_snapshot.allOf).toBeDefined();
     });
 
+    // ===== PAYMENTS TESTS =====
+
+    it("should define Payments tag", () => {
+        const paymentTag = swaggerSpec.tags.find((tag) => tag.name === "Payments");
+        expect(paymentTag).toBeDefined();
+        expect(paymentTag.description).toContain("thanh toán");
+    });
+
+    it("should define payment schemas correctly", () => {
+        // ✅ Core payment schemas
+        expect(swaggerSpec.components.schemas.Payment).toBeDefined();
+        expect(swaggerSpec.components.schemas.Payment.required).toEqual([
+            "id",
+            "order_id",
+            "user_id",
+            "provider",
+            "amount",
+            "currency",
+            "status",
+            "verification_status",
+            "created_at",
+            "updated_at",
+        ]);
+
+        expect(swaggerSpec.components.schemas.PaymentDetail).toBeDefined();
+        expect(swaggerSpec.components.schemas.PaymentListItem).toBeDefined();
+
+        // ✅ Input schemas
+        expect(swaggerSpec.components.schemas.CreatePaymentInput).toBeDefined();
+        expect(swaggerSpec.components.schemas.CreatePaymentInput.required).toEqual([
+            "order_id",
+        ]);
+
+        expect(swaggerSpec.components.schemas.CancelPaymentInput).toBeDefined();
+
+        // ✅ Webhook schemas
+        expect(swaggerSpec.components.schemas.VNPayWebhookInput).toBeDefined();
+        expect(swaggerSpec.components.schemas.VNPayWebhookInput.required).toContain(
+            "vnp_TxnRef"
+        );
+        expect(swaggerSpec.components.schemas.VNPayWebhookInput.required).toContain(
+            "vnp_SecureHash"
+        );
+
+        // ✅ Response schemas
+        expect(swaggerSpec.components.schemas.CreatePaymentResponse).toBeDefined();
+        expect(swaggerSpec.components.schemas.CreatePaymentResponse.required).toEqual([
+            "success",
+            "data",
+        ]);
+
+        expect(swaggerSpec.components.schemas.PaymentResponse).toBeDefined();
+        expect(swaggerSpec.components.schemas.PaymentsListResponse).toBeDefined();
+        expect(swaggerSpec.components.schemas.PaymentStatsResponse).toBeDefined();
+    });
+
+    it("should define create payment endpoint correctly", () => {
+        const route = getPath("/api/v1/payments", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Payments");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("thanh toán");
+        expect(getSchemaRef(route.requestBody)).toBe(
+            "#/components/schemas/CreatePaymentInput"
+        );
+        expect(route.responses["201"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/CreatePaymentResponse"
+        );
+        expect(route.responses["400"].$ref).toBe("#/components/responses/BadRequest");
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+        expect(route.responses["500"].$ref).toBe("#/components/responses/InternalError");
+    });
+
+    it("should define vnpay webhook endpoint correctly", () => {
+        const route = getPath("/api/v1/payments/webhook/vnpay", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Payments");
+        expect(route.security).toEqual([]);
+        expect(route.description).toContain("VNPay");
+        expect(route.description).toContain("IPN");
+        expect(getSchemaRef(route.requestBody)).toBe(
+            "#/components/schemas/VNPayWebhookInput"
+        );
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/WebhookResponse"
+        );
+        expect(route.responses["400"].$ref).toBe("#/components/responses/BadRequest");
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["409"].$ref).toBe("#/components/responses/Conflict");
+    });
+
+    it("should define stripe webhook endpoint correctly", () => {
+        const route = getPath("/api/v1/payments/webhook/stripe", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Payments");
+        expect(route.security).toEqual([]);
+        expect(route.description).toContain("Stripe");
+        expect(route.parameters[0]).toMatchObject({
+            in: "header",
+            name: "x-stripe-signature",
+            required: true,
+            schema: { type: "string" },
+        });
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/WebhookResponse"
+        );
+        expect(route.responses["400"].$ref).toBe("#/components/responses/BadRequest");
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+    });
+
+    it("should define paypal webhook endpoint correctly", () => {
+        const route = getPath("/api/v1/payments/webhook/paypal", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Payments");
+        expect(route.security).toEqual([]);
+        expect(route.description).toContain("PayPal");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/WebhookResponse"
+        );
+        expect(route.responses["400"].$ref).toBe("#/components/responses/BadRequest");
+        expect(route.responses["500"].$ref).toBe("#/components/responses/InternalError");
+    });
+
+    it("should define get payment endpoint correctly", () => {
+        const route = getPath("/api/v1/payments/{paymentId}", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Payments");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "paymentId",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/PaymentResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+    });
+
+    it("should define list payments endpoint correctly", () => {
+        const route = getPath("/api/v1/payments", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Payments");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("lịch sử");
+        expect(route.parameters.map((p) => p.name)).toContain("page");
+        expect(route.parameters.map((p) => p.name)).toContain("limit");
+        expect(route.parameters.map((p) => p.name)).toContain("status");
+        expect(route.parameters.map((p) => p.name)).toContain("provider");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/PaymentsListResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+    });
+
+    it("should define get payment by order endpoint correctly", () => {
+        const route = getPath("/api/v1/orders/{orderId}/payment", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Payments");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "orderId",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/PaymentResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+    });
+
+    it("should define retry payment endpoint correctly", () => {
+        const route = getPath("/api/v1/payments/{paymentId}/retry", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Payments");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("thử lại");
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "paymentId",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/RetryPaymentResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+        expect(route.responses["409"].$ref).toBe("#/components/responses/Conflict");
+    });
+
+    it("should define cancel payment endpoint correctly", () => {
+        const route = getPath("/api/v1/payments/{paymentId}/cancel", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Payments");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("hủy");
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "paymentId",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(getSchemaRef(route.requestBody)).toBe(
+            "#/components/schemas/CancelPaymentInput"
+        );
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/CancelPaymentResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+        expect(route.responses["409"].$ref).toBe("#/components/responses/Conflict");
+    });
+
+    it("should define admin list payments endpoint correctly", () => {
+        const route = getPath("/api/v1/admin/payments", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Payments");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("Admin");
+        expect(route.parameters).toBeDefined();
+        expect(route.parameters.map((p) => p.name)).toContain("page");
+        expect(route.parameters.map((p) => p.name)).toContain("limit");
+        expect(route.parameters.map((p) => p.name)).toContain("status");
+        expect(route.parameters.map((p) => p.name)).toContain("provider");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/PaymentsListResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+    });
+
+    it("should define admin payment stats endpoint correctly", () => {
+        const route = getPath("/api/v1/admin/payments/stats", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Payments");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("thống kê");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/PaymentStatsResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+    });
+
+    it("should define admin verify payment endpoint correctly", () => {
+        const route = getPath("/api/v1/admin/payments/{paymentId}/verify", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Payments");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("debug");
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "paymentId",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(route.responses["200"].content["application/json"].schema).toBeDefined();
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+    });
+
+    it("should define admin delete payment endpoint correctly", () => {
+        const route = getPath("/api/v1/admin/payments/{paymentId}", "delete");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Payments");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("soft-delete");
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "paymentId",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/PaymentResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+    });
+
+    // ===== PAYMENT SCHEMA VALIDATION =====
+
+    it("should validate Payment schema properties", () => {
+        const paymentSchema = swaggerSpec.components.schemas.Payment;
+
+        expect(paymentSchema.properties.id.pattern).toBe("^[a-fA-F0-9]{24}$");
+        expect(paymentSchema.properties.order_id.pattern).toBe("^[a-fA-F0-9]{24}$");
+        expect(paymentSchema.properties.user_id.pattern).toBe("^[a-fA-F0-9]{24}$");
+        expect(paymentSchema.properties.provider.enum).toEqual([
+            "vnpay",
+            "stripe",
+            "paypal",
+        ]);
+        expect(paymentSchema.properties.amount.type).toBe("integer");
+        expect(paymentSchema.properties.currency.enum).toEqual(["VND", "USD"]);
+        expect(paymentSchema.properties.status.enum).toEqual([
+            "pending",
+            "paid",
+            "failed",
+        ]);
+        expect(paymentSchema.properties.verification_status.enum).toEqual([
+            "pending",
+            "verified",
+            "failed",
+        ]);
+    });
+
+    it("should validate CreatePaymentInput has order_id only", () => {
+        const inputSchema = swaggerSpec.components.schemas.CreatePaymentInput;
+
+        expect(inputSchema.required).toEqual(["order_id"]);
+        expect(inputSchema.properties.order_id).toBeDefined();
+        expect(inputSchema.properties.provider.default).toBe("vnpay");
+        // ✅ CRITICAL: No amount field (locked to order)
+        expect(inputSchema.properties.amount).toBeUndefined();
+    });
+
+    it("should validate VNPayWebhookInput required fields", () => {
+        const webhookSchema = swaggerSpec.components.schemas.VNPayWebhookInput;
+
+        expect(webhookSchema.required).toContain("vnp_Amount");
+        expect(webhookSchema.required).toContain("vnp_PayDate");
+        expect(webhookSchema.required).toContain("vnp_ResponseCode");
+        expect(webhookSchema.required).toContain("vnp_TmnCode");
+        expect(webhookSchema.required).toContain("vnp_TransactionNo");
+        expect(webhookSchema.required).toContain("vnp_TxnRef");
+        expect(webhookSchema.required).toContain("vnp_SecureHash");
+
+        // ✅ Signature format validation
+        expect(webhookSchema.properties.vnp_SecureHash.pattern).toBe("^[a-f0-9]{64}$");
+        expect(webhookSchema.properties.vnp_PayDate.pattern).toBe("^\\d{14}$");
+    });
+
+    it("should validate payment amount is integer (no floats)", () => {
+        const paymentSchema = swaggerSpec.components.schemas.Payment;
+        const webhookSchema = swaggerSpec.components.schemas.VNPayWebhookInput;
+
+        // ✅ Amounts must be integers
+        expect(paymentSchema.properties.amount.type).toBe("integer");
+        expect(webhookSchema.properties.vnp_Amount.type).toBe("integer");
+    });
+
+    it("should validate PaymentDetail extends Payment with extra fields", () => {
+        const detailSchema = swaggerSpec.components.schemas.PaymentDetail;
+
+        expect(detailSchema.allOf).toBeDefined();
+        expect(detailSchema.allOf[0].$ref).toBe("#/components/schemas/Payment");
+        expect(detailSchema.allOf[1].properties.status_label).toBeDefined();
+        expect(detailSchema.allOf[1].properties.provider_data).toBeDefined();
+        expect(detailSchema.allOf[1].properties.can_retry).toBeDefined();
+        expect(detailSchema.allOf[1].properties.can_cancel).toBeDefined();
+    });
+
+    it("should validate CancelPaymentInput reason constraint", () => {
+        const cancelSchema = swaggerSpec.components.schemas.CancelPaymentInput;
+
+        expect(cancelSchema.properties.reason.type).toBe("string");
+        expect(cancelSchema.properties.reason.maxLength).toBe(500);
+    });
+
+    it("should validate PaymentsListResponse pagination", () => {
+        const listResponse = swaggerSpec.components.schemas.PaymentsListResponse;
+
+        expect(listResponse.properties.data.type).toBe("array");
+        expect(listResponse.properties.data.items.$ref).toBe(
+            "#/components/schemas/PaymentListItem"
+        );
+        expect(listResponse.properties.pagination).toBeDefined();
+        expect(listResponse.properties.pagination.properties.page.type).toBe("integer");
+        expect(listResponse.properties.pagination.properties.limit.type).toBe("integer");
+        expect(listResponse.properties.pagination.properties.total.type).toBe("integer");
+        expect(listResponse.properties.pagination.properties.totalPages.type).toBe(
+            "integer"
+        );
+    });
+
+    it("should validate PaymentStatsResponse structure", () => {
+        const statsSchema = swaggerSpec.components.schemas.PaymentStatsResponse;
+
+        expect(statsSchema.properties.data.properties.totalPayments).toBeDefined();
+        expect(statsSchema.properties.data.properties.totalRevenue).toBeDefined();
+        expect(statsSchema.properties.data.properties.statusBreakdown).toBeDefined();
+        expect(statsSchema.properties.data.properties.providerBreakdown).toBeDefined();
+        expect(statsSchema.properties.data.properties.failedVerifications).toBeDefined();
+    });
+
+    it("should validate WebhookResponse structure", () => {
+        const webhookResponse = swaggerSpec.components.schemas.WebhookResponse;
+
+        expect(webhookResponse.properties.success.type).toBe("boolean");
+        expect(webhookResponse.properties.data.properties.status).toBeDefined();
+        expect(webhookResponse.properties.data.properties.transactionRef).toBeDefined();
+    });
+
+    it("should validate CreatePaymentResponse includes paymentUrl", () => {
+        const createResponse = swaggerSpec.components.schemas.CreatePaymentResponse;
+
+        expect(createResponse.properties.data.properties.paymentId).toBeDefined();
+        expect(createResponse.properties.data.properties.payment).toBeDefined();
+        expect(createResponse.properties.data.properties.paymentUrl.type).toBe("string");
+        expect(createResponse.properties.data.properties.paymentUrl.format).toBe("uri");
+    });
+
+    it("should validate RetryPaymentResponse matches CreatePaymentResponse structure", () => {
+        const retryResponse = swaggerSpec.components.schemas.RetryPaymentResponse;
+
+        expect(retryResponse.properties.data.properties.paymentId).toBeDefined();
+        expect(retryResponse.properties.data.properties.payment).toBeDefined();
+        expect(retryResponse.properties.data.properties.paymentUrl).toBeDefined();
+    });
+
+    it("should validate CancelPaymentResponse status is failed", () => {
+        const cancelResponse = swaggerSpec.components.schemas.CancelPaymentResponse;
+
+        expect(cancelResponse.properties.data.properties.status.example).toBe("failed");
+        expect(cancelResponse.properties.data.properties.reason.example).toBe(
+            "CANCELLED_BY_USER"
+        );
+    });
+
+    it("should validate payment list item has required fields", () => {
+        const listItemSchema = swaggerSpec.components.schemas.PaymentListItem;
+
+        expect(listItemSchema.required).toContain("id");
+        expect(listItemSchema.required).toContain("order_id");
+        expect(listItemSchema.required).toContain("user_id");
+        expect(listItemSchema.required).toContain("provider");
+        expect(listItemSchema.required).toContain("amount");
+        expect(listItemSchema.required).toContain("currency");
+        expect(listItemSchema.required).toContain("status");
+        expect(listItemSchema.required).toContain("verification_status");
+        expect(listItemSchema.required).toContain("created_at");
+    });
+
+    // ===== PAYMENT ENDPOINT VALIDATION =====
+
+    it("should validate all payment endpoints have proper error responses", () => {
+        const paymentEndpoints = [
+            ["/api/v1/payments/webhook/vnpay", "post"],
+            ["/api/v1/payments/webhook/stripe", "post"],
+            ["/api/v1/payments/webhook/paypal", "post"],
+            ["/api/v1/payments", "post"],
+            ["/api/v1/payments", "get"],
+            ["/api/v1/payments/{paymentId}", "get"],
+            ["/api/v1/orders/{orderId}/payment", "get"],
+            ["/api/v1/payments/{paymentId}/retry", "post"],
+            ["/api/v1/payments/{paymentId}/cancel", "post"],
+            ["/api/v1/admin/payments", "get"],
+            ["/api/v1/admin/payments/stats", "get"],
+            ["/api/v1/admin/payments/{paymentId}/verify", "post"],
+            ["/api/v1/admin/payments/{paymentId}", "delete"],
+        ];
+
+        paymentEndpoints.forEach(([path, method]) => {
+            const route = getPath(path, method);
+            expect(route).toBeDefined();
+            expect(route.responses["500"]).toBeDefined();
+        });
+    });
+
+    it("should validate webhook endpoints have no auth requirement", () => {
+        const webhookEndpoints = [
+            ["/api/v1/payments/webhook/vnpay", "post"],
+            ["/api/v1/payments/webhook/stripe", "post"],
+            ["/api/v1/payments/webhook/paypal", "post"],
+        ];
+
+        webhookEndpoints.forEach(([path, method]) => {
+            const route = getPath(path, method);
+            expect(route.security).toEqual([]);
+        });
+    });
+
+    it("should validate customer payment endpoints require auth", () => {
+        const customerEndpoints = [
+            ["/api/v1/payments", "post"],
+            ["/api/v1/payments", "get"],
+            ["/api/v1/payments/{paymentId}", "get"],
+            ["/api/v1/orders/{orderId}/payment", "get"],
+            ["/api/v1/payments/{paymentId}/retry", "post"],
+            ["/api/v1/payments/{paymentId}/cancel", "post"],
+        ];
+
+        customerEndpoints.forEach(([path, method]) => {
+            const route = getPath(path, method);
+            expect(route.security).toEqual([{ bearerAuth: [] }]);
+        });
+    });
+
+    it("should validate admin payment endpoints require admin auth", () => {
+        const adminEndpoints = [
+            ["/api/v1/admin/payments", "get"],
+            ["/api/v1/admin/payments/stats", "get"],
+            ["/api/v1/admin/payments/{paymentId}/verify", "post"],
+            ["/api/v1/admin/payments/{paymentId}", "delete"],
+        ];
+
+        adminEndpoints.forEach(([path, method]) => {
+            const route = getPath(path, method);
+            expect(route.security).toEqual([{ bearerAuth: [] }]);
+        });
+    });
+
+    it("should validate payment response uses proper DTO refs", () => {
+        const paymentResponse = swaggerSpec.components.schemas.PaymentResponse;
+
+        expect(paymentResponse.properties.data.$ref).toBe(
+            "#/components/schemas/PaymentDetail"
+        );
+    });
+
+    it("should validate Stripe webhook uses x-stripe-signature header", () => {
+        const route = getPath("/api/v1/payments/webhook/stripe", "post");
+
+        const signatureParam = route.parameters.find(
+            (p) => p.name === "x-stripe-signature"
+        );
+        expect(signatureParam).toBeDefined();
+        expect(signatureParam.in).toBe("header");
+        expect(signatureParam.required).toBe(true);
+    });
+
+    it("should validate payment provider enum values", () => {
+        const createInput = swaggerSpec.components.schemas.CreatePaymentInput;
+        const payment = swaggerSpec.components.schemas.Payment;
+
+        expect(createInput.properties.provider.enum).toEqual([
+            "vnpay",
+            "stripe",
+            "paypal",
+        ]);
+        expect(payment.properties.provider.enum).toEqual([
+            "vnpay",
+            "stripe",
+            "paypal",
+        ]);
+    });
+
+    it("should validate payment currency enum values", () => {
+        const payment = swaggerSpec.components.schemas.Payment;
+
+        expect(payment.properties.currency.enum).toEqual(["VND", "USD"]);
+    });
+
+    it("should validate payment status transitions", () => {
+        const payment = swaggerSpec.components.schemas.Payment;
+
+        // ✅ Only these statuses allowed
+        expect(payment.properties.status.enum).toEqual(["pending", "paid", "failed"]);
+    });
+
+    it("should validate verification status transitions", () => {
+        const payment = swaggerSpec.components.schemas.Payment;
+
+        // ✅ Webhook verification states
+        expect(payment.properties.verification_status.enum).toEqual([
+            "pending",
+            "verified",
+            "failed",
+        ]);
+    });
+
+    it("should validate payment list response has pagination", () => {
+        const listResponse = swaggerSpec.components.schemas.PaymentsListResponse;
+
+        expect(listResponse.required).toContain("data");
+        expect(listResponse.required).toContain("pagination");
+        expect(listResponse.properties.pagination.properties.totalPages.type).toBe(
+            "integer"
+        );
+    });
+
+    it("should validate payment timestamps are ISO format", () => {
+        const payment = swaggerSpec.components.schemas.Payment;
+
+        expect(payment.properties.created_at.type).toBe("string");
+        expect(payment.properties.created_at.format).toBe("date-time");
+        expect(payment.properties.updated_at.type).toBe("string");
+        expect(payment.properties.updated_at.format).toBe("date-time");
+    });
+
+    it("should validate PaymentDetail has provider_data field", () => {
+        const detail = swaggerSpec.components.schemas.PaymentDetail;
+
+        expect(detail.allOf[1].properties.provider_data).toBeDefined();
+        expect(detail.allOf[1].properties.provider_data.type).toBe("object");
+        expect(detail.allOf[1].properties.provider_data.nullable).toBe(true);
+    });
+
+    it("should validate payment transaction reference field", () => {
+        const payment = swaggerSpec.components.schemas.Payment;
+
+        expect(payment.properties.transaction_ref.type).toBe("string");
+        expect(payment.properties.transaction_ref.nullable).toBe(true);
+    });
+
+    it("should validate payment failure fields", () => {
+        const payment = swaggerSpec.components.schemas.Payment;
+
+        expect(payment.properties.failure_reason).toBeDefined();
+        expect(payment.properties.failure_reason.nullable).toBe(true);
+        expect(payment.properties.failure_message).toBeDefined();
+        expect(payment.properties.failure_message.nullable).toBe(true);
+    });
+
+    it("should validate payment expires_at TTL field", () => {
+        const payment = swaggerSpec.components.schemas.Payment;
+
+        expect(payment.properties.expires_at.type).toBe("string");
+        expect(payment.properties.expires_at.format).toBe("date-time");
+        expect(payment.properties.expires_at.nullable).toBe(true);
+        expect(payment.properties.expires_at.description).toContain("TTL");
+    });
+
+    it("should validate payment paid_at field", () => {
+        const payment = swaggerSpec.components.schemas.Payment;
+
+        expect(payment.properties.paid_at).toBeDefined();
+        expect(payment.properties.paid_at.type).toBe("string");
+        expect(payment.properties.paid_at.format).toBe("date-time");
+        expect(payment.properties.paid_at.nullable).toBe(true);
+    });
+
+    it("should validate stats response includes breakdown", () => {
+        const statsSchema = swaggerSpec.components.schemas.PaymentStatsResponse;
+
+        expect(
+            statsSchema.properties.data.properties.statusBreakdown.type
+        ).toBe("array");
+        expect(
+            statsSchema.properties.data.properties.providerBreakdown.type
+        ).toBe("array");
+    });
+
+    it("should validate get payment by order uses proper status filtering", () => {
+        const route = getPath("/api/v1/orders/{orderId}/payment", "get");
+
+        expect(route).toBeDefined();
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+    });
+
+    it("should validate payment list supports status filtering", () => {
+        const route = getPath("/api/v1/payments", "get");
+        const statusParam = route.parameters.find((p) => p.name === "status");
+
+        expect(statusParam).toBeDefined();
+        expect(statusParam.description).toContain("status");
+    });
+
+    it("should validate payment list supports provider filtering", () => {
+        const route = getPath("/api/v1/payments", "get");
+        const providerParam = route.parameters.find((p) => p.name === "provider");
+
+        expect(providerParam).toBeDefined();
+        expect(providerParam.schema.enum).toEqual(["vnpay", "stripe", "paypal"]);
+    });
+
+    it("should validate admin list payments supports verification_status filtering", () => {
+        const route = getPath("/api/v1/admin/payments", "get");
+        const verificationParam = route.parameters.find(
+            (p) => p.name === "verification_status"
+        );
+
+        expect(verificationParam).toBeDefined();
+        expect(verificationParam.schema.enum).toEqual([
+            "pending",
+            "verified",
+            "failed",
+        ]);
+    });
+
+    it("should validate CreatePaymentResponse structure", () => {
+        const createResponse = swaggerSpec.components.schemas.CreatePaymentResponse;
+
+        expect(createResponse.properties.success.type).toBe("boolean");
+        expect(createResponse.properties.data.properties.paymentId.pattern).toBe(
+            "^[a-fA-F0-9]{24}$"
+        );
+        expect(createResponse.properties.data.properties.payment.$ref).toBe(
+            "#/components/schemas/Payment"
+        );
+        expect(createResponse.properties.data.properties.paymentUrl.format).toBe(
+            "uri"
+        );
+    });
+
 });

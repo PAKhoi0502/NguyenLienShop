@@ -52,6 +52,10 @@ const swaggerSpec = {
             name: "Orders",
             description: "Quản lý đơn hàng: tạo từ cart, theo dõi, hủy, review, và quản lý admin.",
         },
+        {
+            name: "Payments",
+            description: "Quản lý thanh toán: tạo payment, xử lý webhook, retry/cancel, lịch sử thanh toán.",
+        },
     ],
     components: {
         securitySchemes: {
@@ -2141,6 +2145,348 @@ const swaggerSpec = {
                 },
                 required: ["success", "data"],
             },
+
+            // ✅ PAYMENT SCHEMAS
+            Payment: {
+                type: "object",
+                properties: {
+                    id: {
+                        type: "string",
+                        pattern: "^[a-fA-F0-9]{24}$",
+                        example: "507f1f77bcf86cd799439030",
+                        description: "Payment ID",
+                    },
+                    order_id: {
+                        type: "string",
+                        pattern: "^[a-fA-F0-9]{24}$",
+                        example: "507f1f77bcf86cd799439020",
+                        description: "Order ID",
+                    },
+                    user_id: {
+                        type: "string",
+                        pattern: "^[a-fA-F0-9]{24}$",
+                        example: "507f1f77bcf86cd799439013",
+                        description: "User ID",
+                    },
+                    provider: {
+                        type: "string",
+                        enum: ["vnpay", "stripe", "paypal"],
+                        example: "vnpay",
+                        description: "Payment provider",
+                    },
+                    amount: {
+                        type: "integer",
+                        example: 1620000,
+                        description: "Payment amount (integer only, VND in đồng, USD in cents)",
+                    },
+                    currency: {
+                        type: "string",
+                        enum: ["VND", "USD"],
+                        default: "VND",
+                        example: "VND",
+                    },
+                    status: {
+                        type: "string",
+                        enum: ["pending", "paid", "failed"],
+                        example: "pending",
+                        description: "Payment status (state machine: pending → paid/failed ONLY)",
+                    },
+                    verification_status: {
+                        type: "string",
+                        enum: ["pending", "verified", "failed"],
+                        example: "pending",
+                        description: "Webhook signature verification status",
+                    },
+                    transaction_ref: {
+                        type: "string",
+                        example: "20240415123456789",
+                        nullable: true,
+                        description: "VNPay txn_ref, Stripe PI ID, or PayPal order ID",
+                    },
+                    failure_reason: {
+                        type: "string",
+                        nullable: true,
+                        example: "PAYMENT_REJECTED",
+                        description: "Failure reason (if status=failed)",
+                    },
+                    failure_message: {
+                        type: "string",
+                        nullable: true,
+                        example: "Card declined by bank",
+                        description: "User-facing failure message",
+                    },
+                    paid_at: {
+                        type: "string",
+                        format: "date-time",
+                        nullable: true,
+                        example: "2024-04-15T10:30:00Z",
+                    },
+                    expires_at: {
+                        type: "string",
+                        format: "date-time",
+                        nullable: true,
+                        example: "2024-04-15T10:45:00Z",
+                        description: "Payment window expiration (pending only, TTL field)",
+                    },
+                    created_at: {
+                        type: "string",
+                        format: "date-time",
+                        example: "2024-04-15T10:15:00Z",
+                    },
+                    updated_at: {
+                        type: "string",
+                        format: "date-time",
+                        example: "2024-04-15T10:30:00Z",
+                    },
+                },
+                required: ["id", "order_id", "user_id", "provider", "amount", "currency", "status", "verification_status", "created_at", "updated_at"],
+            },
+
+            PaymentDetail: {
+                allOf: [
+                    { $ref: "#/components/schemas/Payment" },
+                    {
+                        type: "object",
+                        properties: {
+                            status_label: { type: "string", example: "Pending" },
+                            verification_status_label: { type: "string", example: "Awaiting verification" },
+                            provider_data: {
+                                type: "object",
+                                nullable: true,
+                                description: "Provider-specific data (filtered for security)",
+                                properties: {
+                                    vnp_txn_ref: { type: "string", nullable: true },
+                                    vnp_bank_code: { type: "string", nullable: true, example: "VCB" },
+                                    vnp_pay_date: { type: "string", format: "date-time", nullable: true },
+                                    stripe_pi_id: { type: "string", nullable: true },
+                                    stripe_status: { type: "string", nullable: true },
+                                    paypal_order_id: { type: "string", nullable: true },
+                                },
+                            },
+                            can_retry: { type: "boolean", example: false, description: "Can customer retry payment" },
+                            can_cancel: { type: "boolean", example: true, description: "Can customer cancel payment" },
+                            retry_count: { type: "integer", example: 0 },
+                            last_retry_at: { type: "string", format: "date-time", nullable: true },
+                        },
+                    },
+                ],
+            },
+
+            CreatePaymentInput: {
+                type: "object",
+                properties: {
+                    order_id: {
+                        type: "string",
+                        pattern: "^[a-fA-F0-9]{24}$",
+                        description: "Order ID (amount locked to order.total_amount)",
+                        example: "507f1f77bcf86cd799439020",
+                    },
+                    provider: {
+                        type: "string",
+                        enum: ["vnpay", "stripe", "paypal"],
+                        default: "vnpay",
+                        description: "Payment provider (default: vnpay)",
+                    },
+                },
+                required: ["order_id"],
+            },
+
+            CreatePaymentResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: {
+                        type: "object",
+                        properties: {
+                            paymentId: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                            payment: { $ref: "#/components/schemas/Payment" },
+                            paymentUrl: { type: "string", format: "uri", example: "https://sandbox.vnpayment.vn/paygate?..." },
+                        },
+                        required: ["paymentId", "payment", "paymentUrl"],
+                    },
+                },
+                required: ["success", "data"],
+            },
+
+            PaymentListItem: {
+                type: "object",
+                properties: {
+                    id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    order_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    user_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    provider: { type: "string", enum: ["vnpay", "stripe", "paypal"] },
+                    transaction_ref: { type: "string", nullable: true },
+                    amount: { type: "integer" },
+                    currency: { type: "string", enum: ["VND", "USD"] },
+                    status: { type: "string", enum: ["pending", "paid", "failed"] },
+                    verification_status: { type: "string", enum: ["pending", "verified", "failed"] },
+                    created_at: { type: "string", format: "date-time" },
+                    paid_at: { type: "string", format: "date-time", nullable: true },
+                },
+                required: ["id", "order_id", "user_id", "provider", "amount", "currency", "status", "verification_status", "created_at"],
+            },
+
+            PaymentsListResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/PaymentListItem" },
+                    },
+                    pagination: {
+                        type: "object",
+                        properties: {
+                            page: { type: "integer", minimum: 1, example: 1 },
+                            limit: { type: "integer", minimum: 1, maximum: 100, example: 20 },
+                            total: { type: "integer", example: 45 },
+                            totalPages: { type: "integer", example: 3 },
+                        },
+                        required: ["page", "limit", "total", "totalPages"],
+                    },
+                },
+                required: ["success", "data", "pagination"],
+            },
+
+            PaymentResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: { $ref: "#/components/schemas/PaymentDetail" },
+                },
+                required: ["success", "data"],
+            },
+
+            RetryPaymentResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: {
+                        type: "object",
+                        properties: {
+                            paymentId: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                            payment: { $ref: "#/components/schemas/Payment" },
+                            paymentUrl: { type: "string", format: "uri" },
+                        },
+                        required: ["paymentId", "payment", "paymentUrl"],
+                    },
+                },
+                required: ["success", "data"],
+            },
+
+            CancelPaymentInput: {
+                type: "object",
+                properties: {
+                    reason: {
+                        type: "string",
+                        maxLength: 500,
+                        description: "Cancellation reason",
+                        example: "Changed my mind about this order",
+                    },
+                },
+            },
+
+            CancelPaymentResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: {
+                        type: "object",
+                        properties: {
+                            status: { type: "string", example: "failed" },
+                            reason: { type: "string", example: "CANCELLED_BY_USER" },
+                            message: { type: "string", example: "User cancelled" },
+                        },
+                    },
+                },
+                required: ["success", "data"],
+            },
+
+            VNPayWebhookInput: {
+                type: "object",
+                properties: {
+                    vnp_Amount: { type: "integer", example: 1620000 },
+                    vnp_BankCode: { type: "string", example: "VCB" },
+                    vnp_BankTranNo: { type: "string", nullable: true },
+                    vnp_CardType: { type: "string", enum: ["DEBIT", "CREDIT"], nullable: true },
+                    vnp_OrderInfo: { type: "string", nullable: true },
+                    vnp_PayDate: { type: "string", pattern: "^\\d{14}$", example: "20240415101500" },
+                    vnp_ResponseCode: { type: "string", pattern: "^\\d{2}$", example: "00" },
+                    vnp_TmnCode: { type: "string", example: "2QXYZ" },
+                    vnp_TransactionNo: { type: "string", example: "14235820" },
+                    vnp_TxnRef: { type: "string", example: "ORD-20240415-ABC12" },
+                    vnp_SecureHash: { type: "string", pattern: "^[a-f0-9]{64}$" },
+                    vnp_SecureHashType: { type: "string", default: "SHA256" },
+                },
+                required: ["vnp_Amount", "vnp_PayDate", "vnp_ResponseCode", "vnp_TmnCode", "vnp_TransactionNo", "vnp_TxnRef", "vnp_SecureHash"],
+            },
+
+            WebhookResponseData: {
+                type: "object",
+                properties: {
+                    status: { type: "string", example: "paid" },
+                    transactionRef: { type: "string", example: "20240415123456789" },
+                    orderId: { type: "string", pattern: "^[a-fA-F0-9]{24}$", nullable: true },
+                    message: { type: "string", example: "Payment processed successfully" },
+                },
+            },
+
+            WebhookResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: {
+                        type: "object",
+                        properties: {
+                            status: { type: "string", example: "paid" },
+                            transactionRef: { type: "string", example: "20240415123456789" },
+                            orderId: { type: "string", pattern: "^[a-fA-F0-9]{24}$", nullable: true },
+                            message: { type: "string", example: "Payment processed successfully" },
+                        },
+                        required: ["status"]
+                    },
+                },
+                required: ["success", "data"],
+            },
+
+            PaymentStatsResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: {
+                        type: "object",
+                        properties: {
+                            totalPayments: { type: "integer", example: 1250 },
+                            totalRevenue: { type: "integer", example: 2500000000 },
+                            statusBreakdown: {
+                                type: "array",
+                                items: {
+                                    type: "object",
+                                    properties: {
+                                        status: { type: "string", enum: ["pending", "paid", "failed"] },
+                                        count: { type: "integer" },
+                                        revenue: { type: "integer" },
+                                    },
+                                },
+                            },
+                            providerBreakdown: {
+                                type: "array",
+                                items: {
+                                    type: "object",
+                                    properties: {
+                                        provider: { type: "string", enum: ["vnpay", "stripe", "paypal"] },
+                                        count: { type: "integer" },
+                                        revenue: { type: "integer" },
+                                    },
+                                },
+                            },
+                            failedVerifications: { type: "integer", example: 5 },
+                        },
+                    },
+                },
+                required: ["success", "data"],
+            },
+
         },
     },
     paths: {
@@ -4556,6 +4902,516 @@ const swaggerSpec = {
                     "403": { $ref: "#/components/responses/Forbidden" },
                     "404": { $ref: "#/components/responses/NotFound" },
                     "409": { $ref: "#/components/responses/Conflict" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        // ===== PAYMENT WEBHOOKS =====
+
+        "/api/v1/payments/webhook/vnpay": {
+            post: {
+                tags: ["Payments"],
+                summary: "VNPay IPN webhook",
+                security: [],
+                description: "VNPay IPN webhook nhận thông báo thanh toán. Không cần auth. Verify bằng HMAC-SHA256.",
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/VNPayWebhookInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK (webhook always 200)",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/WebhookResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "409": { $ref: "#/components/responses/Conflict" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/payments/webhook/stripe": {
+            post: {
+                tags: ["Payments"],
+                summary: "Stripe webhook",
+                security: [],
+                description: "Stripe sends webhook event. Signature in x-stripe-signature header. Always responds 200.",
+                parameters: [
+                    {
+                        in: "header",
+                        name: "x-stripe-signature",
+                        required: true,
+                        schema: { type: "string" },
+                        description: "Stripe webhook signature (format: t=timestamp,v1=signature)",
+                    },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: {
+                                type: "object",
+                                description: "Stripe webhook event",
+                                properties: {
+                                    id: { type: "string", example: "evt_1234567890" },
+                                    type: { type: "string", example: "payment_intent.succeeded" },
+                                    data: {
+                                        type: "object",
+                                        properties: {
+                                            object: {
+                                                type: "object",
+                                                properties: {
+                                                    id: { type: "string", example: "pi_1234567890" },
+                                                    amount: { type: "integer", example: 1620000 },
+                                                    status: { type: "string", example: "succeeded" },
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/WebhookResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/payments/webhook/paypal": {
+            post: {
+                tags: ["Payments"],
+                summary: "PayPal webhook",
+                security: [],
+                description: "PayPal sends webhook event. No authentication. Always responds 200.",
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: {
+                                type: "object",
+                                description: "PayPal webhook event",
+                                properties: {
+                                    id: { type: "string", example: "WH-123456789" },
+                                    event_type: { type: "string", example: "CHECKOUT.ORDER.COMPLETED" },
+                                    resource: {
+                                        type: "object",
+                                        properties: {
+                                            id: { type: "string", example: "EC-123456789" },
+                                            status: { type: "string", example: "APPROVED" },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/WebhookResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/payments": {
+            post: {
+                tags: ["Payments"],
+                summary: "Create payment",
+                security: [{ bearerAuth: [] }],
+                description: "Khởi tạo thanh toán cho đơn hàng. Số tiền lấy từ order.total_amount, không cho client sửa.",
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/CreatePaymentInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "201": {
+                        description: "Created",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/CreatePaymentResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+            get: {
+                tags: ["Payments"],
+                summary: "List payments",
+                security: [{ bearerAuth: [] }],
+                description: "Lấy lịch sử thanh toán của user hoặc admin. Hỗ trợ filter theo trạng thái, provider, thời gian.",
+                parameters: [
+                    {
+                        in: "query",
+                        name: "page",
+                        schema: { type: "integer", minimum: 1, default: 1 },
+                    },
+                    {
+                        in: "query",
+                        name: "limit",
+                        schema: { type: "integer", minimum: 1, maximum: 100, default: 20 },
+                    },
+                    {
+                        in: "query",
+                        name: "status",
+                        schema: { type: "string", example: "paid,pending" },
+                        description: "Filter by status (comma-separated: pending,paid,failed)",
+                    },
+                    {
+                        in: "query",
+                        name: "provider",
+                        schema: { type: "string", enum: ["vnpay", "stripe", "paypal"] },
+                        description: "Filter by payment provider",
+                    },
+                    {
+                        in: "query",
+                        name: "date_from",
+                        schema: { type: "string", format: "date" },
+                        description: "Filter from date (ISO date)",
+                    },
+                    {
+                        in: "query",
+                        name: "date_to",
+                        schema: { type: "string", format: "date" },
+                        description: "Filter to date (ISO date)",
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/PaymentsListResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/payments/{paymentId}": {
+            get: {
+                tags: ["Payments"],
+                summary: "Get payment details",
+                security: [{ bearerAuth: [] }],
+                description: "Get payment details. Customer can only see their own payments. Admin sees all.",
+                parameters: [
+                    {
+                        in: "path",
+                        name: "paymentId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/PaymentResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/orders/{orderId}/payment": {
+            get: {
+                tags: ["Payments"],
+                summary: "Get payment for order",
+                security: [{ bearerAuth: [] }],
+                description: "Get payment details for a specific order.",
+                parameters: [
+                    {
+                        in: "path",
+                        name: "orderId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/PaymentResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/payments/{paymentId}/retry": {
+            post: {
+                tags: ["Payments"],
+                summary: "Retry failed payment",
+                security: [{ bearerAuth: [] }],
+                description: "thử lại thanh toán thất bại. Reset trạng thái về pending và tạo payment URL mới.",
+                parameters: [
+                    {
+                        in: "path",
+                        name: "paymentId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/RetryPaymentResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "409": { $ref: "#/components/responses/Conflict" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/payments/{paymentId}/cancel": {
+            post: {
+                tags: ["Payments"],
+                summary: "Cancel pending payment",
+                security: [{ bearerAuth: [] }],
+                description: "hủy thanh toán đang pending. Hoàn lại tồn kho nếu cần.",
+                parameters: [
+                    {
+                        in: "path",
+                        name: "paymentId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                requestBody: {
+                    required: false,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/CancelPaymentInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/CancelPaymentResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "409": { $ref: "#/components/responses/Conflict" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/admin/payments": {
+            get: {
+                tags: ["Payments"],
+                summary: "Admin: List all payments",
+                security: [{ bearerAuth: [] }],
+                description: "Admin only. List all payments with comprehensive filtering.",
+                parameters: [
+                    {
+                        in: "query",
+                        name: "page",
+                        schema: { type: "integer", minimum: 1, default: 1 },
+                    },
+                    {
+                        in: "query",
+                        name: "limit",
+                        schema: { type: "integer", minimum: 1, maximum: 100, default: 20 },
+                    },
+                    {
+                        in: "query",
+                        name: "status",
+                        schema: { type: "string", example: "paid,failed" },
+                        description: "Filter by status (comma-separated)",
+                    },
+                    {
+                        in: "query",
+                        name: "verification_status",
+                        schema: { type: "string", enum: ["pending", "verified", "failed"] },
+                        description: "Filter by webhook verification status",
+                    },
+                    {
+                        in: "query",
+                        name: "provider",
+                        schema: { type: "string", enum: ["vnpay", "stripe", "paypal"] },
+                    },
+                    {
+                        in: "query",
+                        name: "date_from",
+                        schema: { type: "string", format: "date" },
+                    },
+                    {
+                        in: "query",
+                        name: "date_to",
+                        schema: { type: "string", format: "date" },
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/PaymentsListResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/admin/payments/stats": {
+            get: {
+                tags: ["Payments"],
+                summary: "Admin: Payment statistics",
+                security: [{ bearerAuth: [] }],
+                description: "Admin: thống kê thanh toán (doanh thu, breakdown theo trạng thái, provider).",
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/PaymentStatsResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/admin/payments/{paymentId}/verify": {
+            post: {
+                tags: ["Payments"],
+                summary: "Admin: Manually verify payment",
+                security: [{ bearerAuth: [] }],
+                description: "Admin only. Manually verify webhook signature for debugging.",
+                parameters: [
+                    {
+                        in: "path",
+                        name: "paymentId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: {
+                                        success: { type: "boolean", example: true },
+                                        data: {
+                                            type: "object",
+                                            properties: {
+                                                paymentId: { type: "string" },
+                                                verification_status: { type: "string", enum: ["pending", "verified", "failed"] },
+                                                status: { type: "string", enum: ["pending", "paid", "failed"] },
+                                                message: { type: "string" },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/admin/payments/{paymentId}": {
+            delete: {
+                tags: ["Payments"],
+                summary: "Admin: Soft-delete payment",
+                security: [{ bearerAuth: [] }],
+                description: "Admin: soft-delete payment (giữ audit trail, không xóa cứng).",
+                parameters: [
+                    {
+                        in: "path",
+                        name: "paymentId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/PaymentResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
                     "500": { $ref: "#/components/responses/InternalError" },
                 },
             },

@@ -56,6 +56,11 @@ const swaggerSpec = {
             name: "Payments",
             description: "Quản lý thanh toán: tạo payment, xử lý webhook, retry/cancel, lịch sử thanh toán.",
         },
+        {
+            name: "Discounts",
+            description:
+                "Quản lý mã giảm giá / voucher: tạo, cập nhật, danh sách, validate code, bulk import, thống kê sử dụng.",
+        },
     ],
     components: {
         securitySchemes: {
@@ -2482,6 +2487,495 @@ const swaggerSpec = {
                             },
                             failedVerifications: { type: "integer", example: 5 },
                         },
+                    },
+                },
+                required: ["success", "data"],
+            },
+
+            // ===== DISCOUNT SCHEMAS =====
+            CreateDiscountInput: {
+                type: "object",
+                properties: {
+                    code: {
+                        type: "string",
+                        minLength: 3,
+                        maxLength: 20,
+                        uppercase: true,
+                        pattern: "^[A-Z0-9_-]+$",
+                        description: "Mã discount (chữ hoa, ký tự đặc biệt: _ -)",
+                        example: "SALE50",
+                    },
+                    type: {
+                        type: "string",
+                        enum: ["percent", "fixed"],
+                        description: "Loại discount",
+                        example: "percent",
+                    },
+                    value: {
+                        type: "number",
+                        minimum: 0,
+                        description: "Giá trị (percent: 50 = 50%, fixed: 200000 = 200k VND)",
+                        example: 50,
+                    },
+                    max_discount_amount: {
+                        type: "number",
+                        minimum: 0,
+                        description: "MANDATORY cho percent: giới hạn tối đa VND",
+                        example: 500000,
+                    },
+                    application_strategy: {
+                        type: "string",
+                        enum: ["apply_all", "apply_once", "apply_cheapest", "apply_most_expensive"],
+                        default: "apply_all",
+                        description: "Cách áp dụng khi có nhiều items khớp",
+                    },
+                    applicable_targets: {
+                        type: "object",
+                        properties: {
+                            type: {
+                                type: "string",
+                                enum: ["all", "specific_products", "specific_categories", "specific_variants"],
+                                default: "all",
+                            },
+                            product_ids: { type: "array", items: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                            category_ids: { type: "array", items: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                            variant_ids: { type: "array", items: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                        },
+                    },
+                    user_eligibility: {
+                        type: "object",
+                        properties: {
+                            type: {
+                                type: "string",
+                                enum: ["all", "first_time_only", "specific_users", "vip_users"],
+                                default: "all",
+                            },
+                            user_ids: { type: "array", items: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                            min_user_tier: {
+                                type: "string",
+                                enum: ["bronze", "silver", "gold", "platinum"],
+                            },
+                        },
+                    },
+                    min_order_value: {
+                        type: "number",
+                        default: 0,
+                        description: "Giá trị đơn hàng tối thiểu để áp dụng",
+                        example: 500000,
+                    },
+                    usage_limit: {
+                        type: "integer",
+                        minimum: 1,
+                        description: "Tổng số lần có thể sử dụng",
+                        example: 1000,
+                    },
+                    usage_per_user_limit: {
+                        type: "integer",
+                        minimum: 1,
+                        description: "Số lần tối đa mỗi user có thể sử dụng",
+                        example: 2,
+                    },
+                    is_stackable: {
+                        type: "boolean",
+                        default: false,
+                        description: "Có thể kết hợp với discount khác không",
+                    },
+                    stack_priority: {
+                        type: "integer",
+                        default: 0,
+                        description: "Độ ưu tiên khi stack (cao hơn = áp dụng trước)",
+                    },
+                    started_at: {
+                        type: "string",
+                        format: "date-time",
+                        description: "Ngày bắt đầu có hiệu lực",
+                        example: "2026-04-01T00:00:00Z",
+                    },
+                    expiry_date: {
+                        type: "string",
+                        format: "date-time",
+                        description: "Ngày hết hạn",
+                        example: "2026-04-30T23:59:59Z",
+                    },
+                    status: {
+                        type: "string",
+                        enum: ["active", "inactive", "paused", "expired"],
+                        default: "active",
+                    },
+                },
+                required: ["code", "type", "value", "usage_limit", "usage_per_user_limit", "started_at", "expiry_date"],
+            },
+
+            UpdateDiscountInput: {
+                type: "object",
+                properties: {
+                    code: { type: "string", minLength: 3, maxLength: 20, pattern: "^[A-Z0-9_-]+$" },
+                    type: { type: "string", enum: ["percent", "fixed"] },
+                    value: { type: "number", minimum: 0 },
+                    max_discount_amount: { type: "number", minimum: 0 },
+                    application_strategy: {
+                        type: "string",
+                        enum: ["apply_all", "apply_once", "apply_cheapest", "apply_most_expensive"],
+                    },
+                    applicable_targets: {
+                        type: "object",
+                        properties: {
+                            type: { type: "string", enum: ["all", "specific_products", "specific_categories", "specific_variants"] },
+                            product_ids: { type: "array", items: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                            category_ids: { type: "array", items: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                            variant_ids: { type: "array", items: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                        },
+                    },
+                    user_eligibility: {
+                        type: "object",
+                        properties: {
+                            type: { type: "string", enum: ["all", "first_time_only", "specific_users", "vip_users"] },
+                            user_ids: { type: "array", items: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                            min_user_tier: { type: "string", enum: ["bronze", "silver", "gold", "platinum"] },
+                        },
+                    },
+                    min_order_value: { type: "number" },
+                    usage_limit: { type: "integer", minimum: 1 },
+                    usage_per_user_limit: { type: "integer", minimum: 1 },
+                    is_stackable: { type: "boolean" },
+                    stack_priority: { type: "integer" },
+                    started_at: { type: "string", format: "date-time" },
+                    expiry_date: { type: "string", format: "date-time" },
+                    status: { type: "string", enum: ["active", "inactive", "paused", "expired"] },
+                },
+            },
+
+            ValidateDiscountInput: {
+                type: "object",
+                properties: {
+                    code: {
+                        type: "string",
+                        minLength: 1,
+                        maxLength: 20,
+                        description: "Mã discount (sẽ auto uppercase + trim)",
+                        example: "SALE50",
+                    },
+                    cartSubtotal: {
+                        type: "number",
+                        minimum: 0,
+                        description: "Tổng tiền giỏ hàng trước discount",
+                        example: 10000000,
+                    },
+                    cartItems: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            properties: {
+                                _id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                                product_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                                variant_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                                unit_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                                category_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                                sku: { type: "string" },
+                                quantity: { type: "integer", minimum: 1 },
+                                line_total: { type: "number", minimum: 0 },
+                            },
+                        },
+                        description: "Danh sách items trong cart (để filter applicable items)",
+                    },
+                },
+                required: ["code", "cartSubtotal"],
+            },
+
+            BulkCreateDiscountInput: {
+                type: "array",
+                minItems: 1,
+                items: {
+                    type: "object",
+                    properties: {
+                        code: { type: "string", minLength: 3, maxLength: 20, pattern: "^[A-Z0-9_-]+$" },
+                        type: { type: "string", enum: ["percent", "fixed"] },
+                        value: { type: "number", minimum: 0 },
+                        max_discount_amount: { type: "number", minimum: 0 },
+                        usage_limit: { type: "integer", minimum: 1 },
+                        usage_per_user_limit: { type: "integer", minimum: 1 },
+                        started_at: { type: "string", format: "date-time" },
+                        expiry_date: { type: "string", format: "date-time" },
+                        status: { type: "string", enum: ["active", "inactive", "paused", "expired"] },
+                    },
+                    required: ["code", "type", "value", "usage_limit", "usage_per_user_limit"],
+                },
+                example: [
+                    {
+                        code: "SALE001",
+                        type: "percent",
+                        value: 10,
+                        max_discount_amount: 100000,
+                        usage_limit: 100,
+                        usage_per_user_limit: 1,
+                    },
+                ],
+            },
+
+            Discount: {
+                type: "object",
+                properties: {
+                    id: { type: "string", pattern: "^[a-fA-F0-9]{24}$", example: "507f1f77bcf86cd799439011" },
+                    code: {
+                        type: "string",
+                        example: "SALE50",
+                        minLength: 3,
+                        maxLength: 20,
+                        pattern: "^[A-Z0-9_-]+$"
+                    },
+                    type: { type: "string", enum: ["percent", "fixed"], example: "percent" },
+                    value: {
+                        type: "number",
+                        minimum: 0,  // ← ADD THIS LINE
+                        example: 50
+                    },
+                    max_discount_amount: {
+                        type: "number",
+                        minimum: 0,
+                        example: 500000
+                    },
+                    application_strategy: {
+                        type: "string",
+                        enum: ["apply_all", "apply_once", "apply_cheapest", "apply_most_expensive"],
+                        example: "apply_all"
+                    },
+                    applicable_targets: {
+                        type: "object",
+                        properties: {
+                            type: {
+                                type: "string",
+                                enum: ["all", "specific_products", "specific_categories", "specific_variants"],
+                                example: "all"
+                            },
+                            type_label: { type: "string", example: "All Products" },
+                            product_ids: { type: "array", items: { type: "string" }, default: [] },
+                            category_ids: { type: "array", items: { type: "string" }, default: [] },
+                            variant_ids: { type: "array", items: { type: "string" }, default: [] },
+                        },
+                    },
+                    user_eligibility: {
+                        type: "object",
+                        properties: {
+                            type: {
+                                type: "string",
+                                enum: ["all", "first_time_only", "specific_users", "vip_users"],
+                                example: "all"
+                            },
+                            type_label: { type: "string", example: "All Users" },
+                            user_ids: { type: "array", items: { type: "string" }, default: [] },
+                            min_user_tier: {
+                                type: "string",
+                                enum: ["bronze", "silver", "gold", "platinum"],
+                                nullable: true
+                            },
+                        },
+                    },
+                    min_order_value: { type: "number", example: 0 },
+                    usage_limit: {
+                        type: "integer",
+                        example: 1000,
+                        minimum: 1
+                    },
+                    usage_per_user_limit: {
+                        type: "integer",
+                        example: 2,
+                        minimum: 1
+                    },
+                    usage_count: { type: "integer", example: 450, minimum: 0 },
+                    usage_percentage: { type: "number", example: 45 },
+                    is_stackable: { type: "boolean", example: false },
+                    stack_priority: { type: "integer", example: 0 },
+                    started_at: { type: "string", format: "date-time" },
+                    expiry_date: { type: "string", format: "date-time" },
+                    is_active: { type: "boolean", example: true },
+                    time_remaining: { type: "string", example: "28 days remaining" },
+                    status: { type: "string", enum: ["active", "inactive", "paused", "expired"], example: "active" },
+                    status_label: { type: "string", example: "Active" },
+                    created_at: { type: "string", format: "date-time" },
+                    updated_at: { type: "string", format: "date-time" },
+                },
+                required: ["id", "code", "type", "value", "status", "created_at", "updated_at"],
+            },
+
+            DiscountListItem: {
+                type: "object",
+                properties: {
+                    id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    code: { type: "string" },
+                    type: { type: "string", enum: ["percent", "fixed"] },
+                    type_label: { type: "string", example: "Percentage" },
+                    value: { type: "number" },
+                    display_value: { type: "string", example: "50% off" },
+                    applicable_targets_type: { type: "string" },
+                    targets_count: { type: "integer", example: 0 },
+                    usage_count: { type: "integer" },
+                    usage_limit: { type: "integer" },
+                    usage_percentage: { type: "number" },
+                    status: { type: "string", enum: ["active", "inactive", "paused", "expired"] },
+                    status_label: { type: "string" },
+                    is_active: { type: "boolean" },
+                    time_remaining: { type: "string" },
+                    created_at: { type: "string", format: "date-time" },
+                    updated_at: { type: "string", format: "date-time" },
+                    can_edit: { type: "boolean" },
+                    can_delete: { type: "boolean" },
+                    can_activate: { type: "boolean" },
+                    can_pause: { type: "boolean" },
+                },
+                required: ["id", "code", "type", "value", "status", "created_at"],
+            },
+
+            DiscountValidationResponse: {
+                type: "object",
+                properties: {
+                    discount_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    code: { type: "string", example: "SALE50" },
+                    type: { type: "string", enum: ["percent", "fixed"] },
+                    original_value: { type: "number", example: 50 },
+                    display_value: { type: "string", example: "50% off" },
+                    discount_amount: { type: "number", example: 500000 },
+                    discount_amount_formatted: { type: "string", example: "500,000 ₫" },
+                    final_total: { type: "number", example: 9500000 },
+                    final_total_formatted: { type: "string", example: "9,500,000 ₫" },
+                    applicable_item_count: { type: "integer", example: 2 },
+                    applicable_item_ids: { type: "array", items: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                    you_save: { type: "number", example: 500000 },
+                    you_save_formatted: { type: "string", example: "500,000 ₫" },
+                    warning: { type: "string", nullable: true, example: "Only 3 uses left" },
+                },
+                required: ["discount_id", "code", "type", "discount_amount", "final_total"],
+            },
+
+            BulkCreateDiscountResult: {
+                type: "object",
+                properties: {
+                    created: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/Discount" },
+                    },
+                    failed: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            properties: {
+                                code: { type: "string" },
+                                error: { type: "string" },
+                            },
+                        },
+                    },
+                },
+                required: ["created", "failed"],
+            },
+
+            DiscountStatsResponse: {
+                type: "object",
+                properties: {
+                    total_discounts: { type: "integer", example: 150 },
+                    active_discounts: { type: "integer", example: 45 },
+                    expired_discounts: { type: "integer", example: 50 },
+                    total_usage: { type: "integer", example: 12500 },
+                    total_discount_amount: { type: "number", example: 5000000000 },
+                    expiring_soon: { type: "integer", example: 8 },
+                    by_type: {
+                        type: "object",
+                        properties: {
+                            percent: { type: "integer", example: 100 },
+                            fixed: { type: "integer", example: 50 },
+                        },
+                    },
+                    by_status: {
+                        type: "object",
+                        properties: {
+                            active: { type: "integer", example: 45 },
+                            inactive: { type: "integer", example: 60 },
+                            paused: { type: "integer", example: 25 },
+                            expired: { type: "integer", example: 20 },
+                        },
+                    },
+                },
+            },
+
+            // ===== RESPONSE SCHEMAS =====
+            DiscountResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: { $ref: "#/components/schemas/Discount" },
+                },
+                required: ["success", "data"],
+            },
+
+            DiscountsListResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/DiscountListItem" },
+                    },
+                    pagination: {
+                        type: "object",
+                        properties: {
+                            page: { type: "integer", minimum: 1, example: 1 },
+                            limit: { type: "integer", minimum: 1, example: 20 },
+                            total: { type: "integer", example: 150 },
+                            totalPages: { type: "integer", example: 8 },
+                        },
+                        required: ["page", "limit", "total", "totalPages"],
+                    },
+                },
+                required: ["success", "data", "pagination"],
+            },
+
+            ValidateDiscountResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: { $ref: "#/components/schemas/DiscountValidationResponse" },
+                },
+                required: ["success", "data"],
+            },
+
+            BulkCreateDiscountResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: { $ref: "#/components/schemas/BulkCreateDiscountResult" },
+                },
+                required: ["success", "data"],
+            },
+
+            DiscountStatsResponseWrapper: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: {
+                        type: "object",
+                        properties: {
+                            total_discounts: { type: "integer", example: 150 },
+                            active_discounts: { type: "integer", example: 45 },
+                            expired_discounts: { type: "integer", example: 50 },
+                            total_usage: { type: "integer", example: 12500 },
+                            total_discount_amount: { type: "number", example: 5000000000 },
+                            expiring_soon: { type: "integer", example: 8 },
+                            by_type: {
+                                type: "object",
+                                properties: {
+                                    percent: { type: "integer", example: 100 },
+                                    fixed: { type: "integer", example: 50 },
+                                },
+                            },
+                            by_status: {
+                                type: "object",
+                                properties: {
+                                    active: { type: "integer", example: 45 },
+                                    inactive: { type: "integer", example: 60 },
+                                    paused: { type: "integer", example: 25 },
+                                    expired: { type: "integer", example: 20 },
+                                },
+                            },
+                        },
+                        required: ["total_discounts", "active_discounts", "by_type", "by_status"]
                     },
                 },
                 required: ["success", "data"],
@@ -5412,6 +5906,402 @@ const swaggerSpec = {
                     "401": { $ref: "#/components/responses/Unauthorized" },
                     "403": { $ref: "#/components/responses/Forbidden" },
                     "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/discounts/validate": {
+            post: {
+                tags: ["Discounts"],
+                summary: "Validate discount code at checkout",
+                security: [],
+                description: "Validate và tính toán discount amount (public endpoint, không cần auth).",
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/ValidateDiscountInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/ValidateDiscountResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/discounts/applicable": {
+            post: {
+                tags: ["Discounts"],
+                summary: "Get applicable discounts for cart",
+                security: [],
+                description: "Get danh sách discount có thể áp dụng cho giỏ hàng - applicable for cart items",
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: {
+                                type: "object",
+                                properties: {
+                                    cartSubtotal: {
+                                        type: "number",
+                                        minimum: 0,
+                                        example: 10000000,
+                                    },
+                                    cartItems: {
+                                        type: "array",
+                                        items: {
+                                            type: "object",
+                                            properties: {
+                                                product_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                                                variant_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                                                category_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                                            },
+                                        },
+                                    },
+                                },
+                                required: ["cartSubtotal", "cartItems"],
+                            },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/DiscountsListResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/discounts": {
+            post: {
+                tags: ["Discounts"],
+                summary: "Create discount",
+                security: [{ bearerAuth: [] }],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/CreateDiscountInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "201": {
+                        description: "Created",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/DiscountResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "409": { $ref: "#/components/responses/Conflict" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+            get: {
+                tags: ["Discounts"],
+                summary: "List discounts",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    { in: "query", name: "page", schema: { type: "integer", minimum: 1, default: 1 } },
+                    { in: "query", name: "limit", schema: { type: "integer", minimum: 1, maximum: 100, default: 20 } },
+                    { in: "query", name: "status", schema: { type: "string", enum: ["active", "inactive", "paused", "expired"] } },
+                    { in: "query", name: "type", schema: { type: "string", enum: ["percent", "fixed"] } },
+                    { in: "query", name: "search", schema: { type: "string", description: "Search by code" } },
+                    { in: "query", name: "sortBy", schema: { type: "string", enum: ["created_at", "expiry_date", "usage_count", "-created_at", "-expiry_date", "-usage_count"], default: "-created_at" } },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/DiscountsListResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/discounts/{discountId}": {
+            get: {
+                tags: ["Discounts"],
+                summary: "Get discount detail",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    { in: "path", name: "discountId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/DiscountResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+            patch: {
+                tags: ["Discounts"],
+                summary: "Update discount",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    { in: "path", name: "discountId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/UpdateDiscountInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/DiscountResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "409": { $ref: "#/components/responses/Conflict" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+            delete: {
+                tags: ["Discounts"],
+                summary: "Delete discount (soft delete)",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    { in: "path", name: "discountId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: {
+                                        success: { type: "boolean", example: true },
+                                        message: { type: "string", example: "Discount deleted successfully" },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/discounts/{discountId}/revoke": {
+            post: {
+                tags: ["Discounts"],
+                summary: "Revoke discount (mark inactive)",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    { in: "path", name: "discountId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/DiscountResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/discounts/{discountId}/duplicate": {
+            post: {
+                tags: ["Discounts"],
+                summary: "Duplicate discount",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    { in: "path", name: "discountId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                    { in: "query", name: "new_code", required: true, schema: { type: "string", minLength: 3, maxLength: 20 } },
+                ],
+                responses: {
+                    "201": {
+                        description: "Created",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/DiscountResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "409": { $ref: "#/components/responses/Conflict" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/discounts/{discountId}/stats": {
+            get: {
+                tags: ["Discounts"],
+                summary: "Get discount usage statistics",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    { in: "path", name: "discountId", required: true, schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" } },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: {
+                                        success: { type: "boolean", example: true },
+                                        data: {
+                                            type: "object",
+                                            properties: {
+                                                discount_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                                                code: { type: "string" },
+                                                usage_count: { type: "integer" },
+                                                usage_limit: { type: "integer" },
+                                                usage_percentage: { type: "number" },
+                                                total_discount_amount: { type: "number" },
+                                                unique_users: { type: "integer" },
+                                                first_used: { type: "string", format: "date-time", nullable: true },
+                                                last_used: { type: "string", format: "date-time", nullable: true },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/discounts/bulk/import": {
+            post: {
+                tags: ["Discounts"],
+                summary: "Bulk create discounts",
+                security: [{ bearerAuth: [] }],
+                description: "Import nhiều discount từ mảng / CSV bulk. Trả về created vs failed.",
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/BulkCreateDiscountInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/BulkCreateDiscountResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/discounts/near-expiry": {
+            get: {
+                tags: ["Discounts"],
+                summary: "Get discounts expiring soon",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    { in: "query", name: "days", schema: { type: "integer", minimum: 1, default: 7 }, description: "Expiring within N days" },
+                    { in: "query", name: "limit", schema: { type: "integer", minimum: 1, maximum: 100, default: 20 } },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/DiscountsListResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/admin/discounts/stats": {
+            get: {
+                tags: ["Discounts"],
+                summary: "Get discount statistics (admin dashboard)",
+                security: [{ bearerAuth: [] }],
+                description: "Get discount statistics dashboard - admin view of all campaigns",
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/DiscountStatsResponseWrapper" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
                     "500": { $ref: "#/components/responses/InternalError" },
                 },
             },

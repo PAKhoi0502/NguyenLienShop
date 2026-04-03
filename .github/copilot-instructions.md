@@ -1,30 +1,61 @@
 ﻿# AI Copilot Instructions - NguyenLienShop Backend
 
-**NguyenLienShop** is a Node.js/Express e-commerce backend with MongoDB. The codebase follows a modular service architecture with clear separation of concerns.
+**NguyenLienShop** is a Node.js/Express e-commerce backend with MongoDB. The codebase follows a **modular service architecture** with clear separation of concerns.
 
-## Core Stack & Setup
+## Quick Start
 
-- **Framework**: Express.js v5.1 | **Database**: MongoDB + Mongoose | **Validation**: Zod | **Auth**: JWT + bcrypt
-- **Dev**: Nodemon, Jest
-- **Commands**: 
-  - `npm run dev` - Start with hot-reload
-  - `npm run seed` - Populate test data
-  - `npm test` - Run Jest tests
-  - MongoDB must run locally (set `MONGODB_URI`, `MONGODB_DB_NAME` in `.env`)
+```bash
+# Setup
+npm install
+# Create .env with: MONGODB_URI, MONGODB_DB_NAME, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET, PORT (default 5000)
+
+# Run
+npm run dev        # Hot-reload via nodemon
+npm test           # Jest tests
+npm run seed       # Populate test data
+```
+
+**Stack**: Express.js v5.1 • MongoDB + Mongoose • Zod validation • JWT + bcrypt auth
 
 ## Project Structure
 
 ```
 src/
 ├── app.js                 # Express setup (helmet, cors, rate-limit, error handler)
-├── server.js              # Entry point + graceful shutdown
+├── server.js              # Entry point + graceful shutdown (SIGINT/SIGTERM)
 ├── config/db.js           # MongoDB connection with retry logic (5 attempts, exponential backoff)
-├── routes/index.js        # Route aggregation point
+├── routes/index.js        # Route aggregation point (mounts all module routes)
 ├── modules/               # Feature modules (auth, users, products, categories, carts, orders, payments)
-├── middlewares/           # Shared (auth, validate, authorize, errorHandler)
-├── utils/                 # Utilities (AppError, asyncHandler, validators, helpers)
+├── middlewares/           # Shared middleware (auth, validate, authorize, errorHandler)
+├── utils/                 # Utilities (AppError, asyncHandler, validators, auth, crypto, helpers)
 └── docs/swagger.js        # Swagger/OpenAPI documentation
 ```
+
+**Nested routes example** (`modules/products/routes/`):
+- `index.js` - Aggregates and mounts sub-routes
+- `product.routes.js` - GET /products, /search, /:productId
+- `variant.routes.js` - GET /products/:productId/variants, PATCH /variants/:id
+- `variant_unit.routes.js` - GET /variants/:variantId/units, POST, PATCH /variant-units/:id
+
+## Architecture & Module Pattern
+
+Every endpoint follows this flow:
+```
+Route → validate() → authenticate() → Controller → Service → Model → DTO Response
+```
+
+**Each module** (`modules/products/`, `modules/users/`, `modules/carts/`) has:
+- **model.js** - Mongoose schema + validation + custom methods + soft-delete middleware
+- **service.js** - Business logic (static class); validates, checks constraints, returns DTOs
+- **controller.js** - Request handlers wrapped in `asyncHandler()`; delegates to service
+- **mapper.js** - DTO transformation (Mongoose docs → API responses; hides `_id`, `__v`, internal fields)
+- **validator.js** - Zod schemas for request validation (body/params/query)
+- **routes.js** - Express router with middleware chaining
+
+**Key principle**: 
+- Controllers → Services (never skip service layer)
+- Services return DTOs (never raw MongoDB docs to API)
+- Mappers transform docs before returning to client
 
 ## Request → Response Flow & Module Pattern
 
@@ -44,6 +75,30 @@ Route → validate() → authenticate() → Controller → Service → Mapper �
 - **Routes** - Express router with middleware chaining (`validate()` → `authenticate()` → controller)
 
 **Critical**: Service methods return DTOs (never raw MongoDB docs). Controllers delegate to services. Services use models for DB queries.
+
+### asyncHandler Pattern
+
+All controller functions **MUST** be wrapped with `asyncHandler()` from `src/utils/asyncHandler.util.js`:
+
+```javascript
+const asyncHandler = (fn) => (req, res, next) => {
+    Promise.resolve(fn(req, res, next)).catch(next);  // ← Catches all promise rejections
+};
+
+// ✅ CORRECT: Handler wrapped in asyncHandler
+const getProduct = asyncHandler(async (req, res) => {
+    const product = await ProductService.getProductById(req.params.id);
+    res.json({ success: true, data: product });
+});
+
+// ❌ WRONG: Unhandled promise rejection if service throws
+const getProduct = async (req, res) => {
+    const product = await ProductService.getProductById(req.params.id);
+    res.json({ success: true, data: product });
+};
+```
+
+**Why**: Without `asyncHandler`, unhandled promise rejections crash the server. With it, all errors (including `AppError`) propagate to `errorHandler` middleware which sends proper JSON responses.
 
 ### Route Parameter Ordering (Specific BEFORE Dynamic)
 
@@ -69,19 +124,26 @@ The `errorHandler` middleware catches AppError and returns:
 { "success": false, "code": "ERROR_CODE", "message": "..." }
 ```
 
-**Validation** happens via `validate()` middleware using Zod schemas in `module.validator.js`:
-```javascript
-const createProductSchema = z.object({
-    name: z.string().min(2).max(200),
-    category_id: z.string(),
-});
-// ✅ Modern pattern: validate({ body, params, query }) for multi-part validation
-router.post('/', validate({ body: createProductSchema }), controller.create);
-router.patch('/:id', validate({ params: idSchema, body: updateSchema }), controller.update);
+**Validation** uses Zod schemas in `module.validator.js`. Two current patterns exist:
 
-// ❌ DEPRECATED: Don't create custom inline validate functions (use middleware/validate.middleware.js)
-// Avoid: const validate = (schema) => (req, res, next) => { ... }
+```javascript
+// ✅ PATTERN 1: Inline validate function (used in auth.routes)
+const validate = (schema) => (req, res, next) => {
+    try {
+        req.body = schema.parse(req.body || {});
+        next();
+    } catch (error) {
+        // Handle ZodError...
+    }
+};
+router.post('/login', validate(loginSchema), authController.login);
+
+// ✅ PATTERN 2: Dedicated middleware (use this for new code)
+// From src/middlewares/validate.middleware.js - simpler, throws AppError
+router.post('/', validate(createProductSchema), controller.create);
 ```
+
+**Recommendation**: Prefer Pattern 2 (middleware-based) for consistency; both work.
 
 ### Authentication & Authorization
 
@@ -94,31 +156,35 @@ router.patch('/:id', validate({ params: idSchema, body: updateSchema }), control
 
 ### Validation Middleware Pattern (Multi-Part)
 
-The `validate()` middleware in `src/middlewares/validate.middleware.js` supports validating multiple request parts:
+The `validate()` middleware in `src/middlewares/validate.middleware.js` supports validating body. For multi-part (params/query), currently requires custom inline handling.
 
 ```javascript
-// ✅ CORRECT: Validate body, params, and query
-router.patch(
-    '/orders/:order_id/review',
-    authenticate(),
-    validate({
-        params: getOrderByIdSchema,    // Validates req.params
-        body: writeReviewSchema,       // Validates req.body
-        // query: searchSchema         // Optional: validate query params
-    }),
-    OrderController.writeReview
-);
+// ✅ Validate body with centralized middleware
+router.post('/', validate(createProductSchema), ProductController.create);
 
-// ✅ Validator will check all specified parts sequentially
-// ✅ Throws AppError(400, 'VALIDATION_ERROR') on first failure
-// ✅ Always use this centralized middleware, NOT custom inline validators
+// ✅ For routes requiring params validation, use inline validate or add to middleware later
+const validate = (schema) => (req, res, next) => {
+    try {
+        req.body = schema.parse(req.body || {});
+        next();
+    } catch (error) {
+        if (error instanceof ZodError) {
+            return res.status(400).json({
+                success: false,
+                code: "VALIDATION_ERROR",
+                message: error.issues.map((e) => e.message).join("; "),
+            });
+        }
+        next(error);
+    }
+};
 ```
 
-**Key pattern differences**:
-- **Query validation**: Most common for filtering/pagination (`page`, `limit`, `status`)
-- **Path params**: Separate validation for ID patterns (MongoDB ObjectId format)
-- **Body validation**: Primary validation for create/update operations
-- **Order matters**: Validate specific routes BEFORE dynamic routes to prevent param confusion
+**Pattern**: 
+- Validation schema always defined in `module.validator.js`
+- Validate middleware applies schema to `req.body`
+- Throws `AppError(400, 'VALIDATION_ERROR')` on failure
+- Controllers receive pre-validated request data
 
 ## Critical Business Rules & Invariants
 

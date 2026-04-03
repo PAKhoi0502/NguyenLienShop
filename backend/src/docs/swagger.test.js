@@ -2883,4 +2883,671 @@ describe("swaggerSpec", () => {
         );
     });
 
+
+    // ===== DISCOUNTS TESTS =====
+
+    it("should define Discounts tag", () => {
+        const discountTag = swaggerSpec.tags.find((tag) => tag.name === "Discounts");
+        expect(discountTag).toBeDefined();
+        expect(discountTag.description).toContain("Quản lý mã giảm giá");
+    });
+
+    it("should define discount schemas correctly", () => {
+        // ✅ Core discount schemas
+        expect(swaggerSpec.components.schemas.CreateDiscountInput).toBeDefined();
+        expect(swaggerSpec.components.schemas.CreateDiscountInput.required).toEqual([
+            "code",
+            "type",
+            "value",
+            "usage_limit",
+            "usage_per_user_limit",
+            "started_at",
+            "expiry_date",
+        ]);
+
+        expect(swaggerSpec.components.schemas.UpdateDiscountInput).toBeDefined();
+        expect(swaggerSpec.components.schemas.Discount).toBeDefined();
+        expect(swaggerSpec.components.schemas.DiscountListItem).toBeDefined();
+        expect(swaggerSpec.components.schemas.DiscountValidationResponse).toBeDefined();
+        expect(swaggerSpec.components.schemas.BulkCreateDiscountInput).toBeDefined();
+        expect(swaggerSpec.components.schemas.BulkCreateDiscountResult).toBeDefined();
+        expect(swaggerSpec.components.schemas.DiscountStatsResponse).toBeDefined();
+
+        // ✅ Response schemas
+        expect(swaggerSpec.components.schemas.DiscountResponse).toBeDefined();
+        expect(swaggerSpec.components.schemas.DiscountsListResponse).toBeDefined();
+        expect(swaggerSpec.components.schemas.ValidateDiscountResponse).toBeDefined();
+        expect(swaggerSpec.components.schemas.BulkCreateDiscountResponse).toBeDefined();
+    });
+
+    it("should define validate discount endpoint correctly", () => {
+        const route = getPath("/api/v1/discounts/validate", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Discounts");
+        expect(route.security).toEqual([]);
+        expect(route.description).toContain("Validate");
+        expect(getSchemaRef(route.requestBody)).toBe("#/components/schemas/ValidateDiscountInput");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/ValidateDiscountResponse"
+        );
+        expect(route.responses["400"].$ref).toBe("#/components/responses/BadRequest");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+        expect(route.responses["500"].$ref).toBe("#/components/responses/InternalError");
+    });
+
+    it("should define get applicable discounts endpoint correctly", () => {
+        const route = getPath("/api/v1/discounts/applicable", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Discounts");
+        expect(route.security).toEqual([]);
+        expect(route.description).toContain("applicable");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/DiscountsListResponse"
+        );
+        expect(route.responses["400"].$ref).toBe("#/components/responses/BadRequest");
+        expect(route.responses["500"].$ref).toBe("#/components/responses/InternalError");
+    });
+
+    it("should define create discount endpoint correctly", () => {
+        const route = getPath("/api/v1/discounts", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Discounts");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(getSchemaRef(route.requestBody)).toBe("#/components/schemas/CreateDiscountInput");
+        expect(route.responses["201"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/DiscountResponse"
+        );
+        expect(route.responses["400"].$ref).toBe("#/components/responses/BadRequest");
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["409"].$ref).toBe("#/components/responses/Conflict");
+        expect(route.responses["500"].$ref).toBe("#/components/responses/InternalError");
+    });
+
+    it("should define list discounts endpoint correctly", () => {
+        const route = getPath("/api/v1/discounts", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Discounts");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.parameters.map((p) => p.name)).toContain("page");
+        expect(route.parameters.map((p) => p.name)).toContain("limit");
+        expect(route.parameters.map((p) => p.name)).toContain("status");
+        expect(route.parameters.map((p) => p.name)).toContain("type");
+        expect(route.parameters.map((p) => p.name)).toContain("search");
+        expect(route.parameters.map((p) => p.name)).toContain("sortBy");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/DiscountsListResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["500"].$ref).toBe("#/components/responses/InternalError");
+    });
+
+    it("should define get discount endpoint correctly", () => {
+        const route = getPath("/api/v1/discounts/{discountId}", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Discounts");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "discountId",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/DiscountResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+        expect(route.responses["500"].$ref).toBe("#/components/responses/InternalError");
+    });
+
+    it("should define update discount endpoint correctly", () => {
+        const route = getPath("/api/v1/discounts/{discountId}", "patch");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Discounts");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "discountId",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(getSchemaRef(route.requestBody)).toBe("#/components/schemas/UpdateDiscountInput");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/DiscountResponse"
+        );
+        expect(route.responses["400"].$ref).toBe("#/components/responses/BadRequest");
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+        expect(route.responses["409"].$ref).toBe("#/components/responses/Conflict");
+        expect(route.responses["500"].$ref).toBe("#/components/responses/InternalError");
+    });
+
+    it("should define delete discount endpoint correctly", () => {
+        const route = getPath("/api/v1/discounts/{discountId}", "delete");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Discounts");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "discountId",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(route.responses["200"].content["application/json"].schema).toBeDefined();
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+        expect(route.responses["500"].$ref).toBe("#/components/responses/InternalError");
+    });
+
+    it("should define revoke discount endpoint correctly", () => {
+        const route = getPath("/api/v1/discounts/{discountId}/revoke", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Discounts");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "discountId",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/DiscountResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+        expect(route.responses["500"].$ref).toBe("#/components/responses/InternalError");
+    });
+
+    it("should define duplicate discount endpoint correctly", () => {
+        const route = getPath("/api/v1/discounts/{discountId}/duplicate", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Discounts");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "discountId",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(route.parameters[1]).toMatchObject({
+            in: "query",
+            name: "new_code",
+            required: true,
+            schema: { type: "string", minLength: 3, maxLength: 20 },
+        });
+        expect(route.responses["201"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/DiscountResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+        expect(route.responses["409"].$ref).toBe("#/components/responses/Conflict");
+        expect(route.responses["500"].$ref).toBe("#/components/responses/InternalError");
+    });
+
+    it("should define get discount stats endpoint correctly", () => {
+        const route = getPath("/api/v1/discounts/{discountId}/stats", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Discounts");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "discountId",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(route.responses["200"].content["application/json"].schema).toBeDefined();
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+        expect(route.responses["500"].$ref).toBe("#/components/responses/InternalError");
+    });
+
+    it("should define bulk import discounts endpoint correctly", () => {
+        const route = getPath("/api/v1/discounts/bulk/import", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Discounts");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("bulk");
+        expect(getSchemaRef(route.requestBody)).toBe("#/components/schemas/BulkCreateDiscountInput");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/BulkCreateDiscountResponse"
+        );
+        expect(route.responses["400"].$ref).toBe("#/components/responses/BadRequest");
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["500"].$ref).toBe("#/components/responses/InternalError");
+    });
+
+    it("should define near expiry endpoint correctly", () => {
+        const route = getPath("/api/v1/discounts/near-expiry", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Discounts");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.parameters.map((p) => p.name)).toContain("days");
+        expect(route.parameters.map((p) => p.name)).toContain("limit");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/DiscountsListResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["500"].$ref).toBe("#/components/responses/InternalError");
+    });
+
+    it("should define admin discount stats endpoint correctly", () => {
+        const route = getPath("/api/v1/admin/discounts/stats", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Discounts");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("dashboard");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/DiscountStatsResponseWrapper"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["500"].$ref).toBe("#/components/responses/InternalError");
+    });
+
+    // ===== DISCOUNT SCHEMA VALIDATION =====
+
+    it("should validate Discount schema properties", () => {
+        const discountSchema = swaggerSpec.components.schemas.Discount;
+
+        expect(discountSchema.properties.id.pattern).toBe("^[a-fA-F0-9]{24}$");
+        expect(discountSchema.properties.code.type).toBe("string");
+        expect(discountSchema.properties.code.minLength).toBe(3);
+        expect(discountSchema.properties.code.maxLength).toBe(20);
+        expect(discountSchema.properties.type.enum).toEqual(["percent", "fixed"]);
+        expect(discountSchema.properties.value.minimum).toBe(0);
+        expect(discountSchema.properties.max_discount_amount.minimum).toBe(0);
+        expect(discountSchema.properties.status.enum).toEqual([
+            "active",
+            "inactive",
+            "paused",
+            "expired",
+        ]);
+    });
+
+    it("should validate CreateDiscountInput required fields", () => {
+        const inputSchema = swaggerSpec.components.schemas.CreateDiscountInput;
+
+        expect(inputSchema.required).toContain("code");
+        expect(inputSchema.required).toContain("type");
+        expect(inputSchema.required).toContain("value");
+        expect(inputSchema.required).toContain("usage_limit");
+        expect(inputSchema.required).toContain("usage_per_user_limit");
+        expect(inputSchema.required).toContain("started_at");
+        expect(inputSchema.required).toContain("expiry_date");
+    });
+
+    it("should validate application_strategy enum", () => {
+        const discountSchema = swaggerSpec.components.schemas.Discount;
+
+        expect(discountSchema.properties.application_strategy.enum).toEqual([
+            "apply_all",
+            "apply_once",
+            "apply_cheapest",
+            "apply_most_expensive",
+        ]);
+    });
+
+    it("should validate applicable_targets structure", () => {
+        const discountSchema = swaggerSpec.components.schemas.Discount;
+
+        expect(discountSchema.properties.applicable_targets.properties.type.enum).toEqual([
+            "all",
+            "specific_products",
+            "specific_categories",
+            "specific_variants",
+        ]);
+        expect(discountSchema.properties.applicable_targets.properties.product_ids).toBeDefined();
+        expect(discountSchema.properties.applicable_targets.properties.category_ids).toBeDefined();
+        expect(discountSchema.properties.applicable_targets.properties.variant_ids).toBeDefined();
+    });
+
+    it("should validate user_eligibility structure", () => {
+        const discountSchema = swaggerSpec.components.schemas.Discount;
+
+        expect(discountSchema.properties.user_eligibility.properties.type.enum).toEqual([
+            "all",
+            "first_time_only",
+            "specific_users",
+            "vip_users",
+        ]);
+        expect(discountSchema.properties.user_eligibility.properties.user_ids).toBeDefined();
+        expect(discountSchema.properties.user_eligibility.properties.min_user_tier.enum).toEqual([
+            "bronze",
+            "silver",
+            "gold",
+            "platinum",
+        ]);
+    });
+
+    it("should validate ValidateDiscountInput code format", () => {
+        const inputSchema = swaggerSpec.components.schemas.ValidateDiscountInput;
+
+        expect(inputSchema.required).toContain("code");
+        expect(inputSchema.required).toContain("cartSubtotal");
+        expect(inputSchema.properties.code.minLength).toBe(1);
+        expect(inputSchema.properties.cartSubtotal.minimum).toBe(0);
+    });
+
+    it("should validate DiscountValidationResponse structure", () => {
+        const responseSchema = swaggerSpec.components.schemas.DiscountValidationResponse;
+
+        expect(responseSchema.required).toContain("discount_id");
+        expect(responseSchema.required).toContain("code");
+        expect(responseSchema.required).toContain("type");
+        expect(responseSchema.required).toContain("discount_amount");
+        expect(responseSchema.required).toContain("final_total");
+        expect(responseSchema.properties.discount_amount_formatted.type).toBe("string");
+        expect(responseSchema.properties.you_save_formatted.type).toBe("string");
+    });
+
+    it("should validate BulkCreateDiscountInput array structure", () => {
+        const bulkSchema = swaggerSpec.components.schemas.BulkCreateDiscountInput;
+
+        expect(bulkSchema.type).toBe("array");
+        expect(bulkSchema.minItems).toBe(1);
+        expect(bulkSchema.items.properties.code).toBeDefined();
+        expect(bulkSchema.items.properties.type).toBeDefined();
+        expect(bulkSchema.items.properties.value).toBeDefined();
+    });
+
+    it("should validate BulkCreateDiscountResult structure", () => {
+        const resultSchema = swaggerSpec.components.schemas.BulkCreateDiscountResult;
+
+        expect(resultSchema.properties.created.type).toBe("array");
+        expect(resultSchema.properties.failed.type).toBe("array");
+        expect(resultSchema.properties.failed.items.properties.code).toBeDefined();
+        expect(resultSchema.properties.failed.items.properties.error).toBeDefined();
+    });
+
+    it("should validate DiscountListItem has admin flags", () => {
+        const listItemSchema = swaggerSpec.components.schemas.DiscountListItem;
+
+        expect(listItemSchema.properties.can_edit.type).toBe("boolean");
+        expect(listItemSchema.properties.can_delete.type).toBe("boolean");
+        expect(listItemSchema.properties.can_activate.type).toBe("boolean");
+        expect(listItemSchema.properties.can_pause.type).toBe("boolean");
+    });
+
+    it("should validate DiscountStatsResponse structure", () => {
+        const statsSchema = swaggerSpec.components.schemas.DiscountStatsResponse;
+
+        expect(statsSchema.properties.total_discounts.type).toBe("integer");
+        expect(statsSchema.properties.active_discounts.type).toBe("integer");
+        expect(statsSchema.properties.expired_discounts.type).toBe("integer");
+        expect(statsSchema.properties.total_usage.type).toBe("integer");
+        expect(statsSchema.properties.by_type).toBeDefined();
+        expect(statsSchema.properties.by_status).toBeDefined();
+    });
+
+    it("should validate DiscountsListResponse pagination", () => {
+        const listResponse = swaggerSpec.components.schemas.DiscountsListResponse;
+
+        expect(listResponse.required).toContain("success");
+        expect(listResponse.required).toContain("data");
+        expect(listResponse.required).toContain("pagination");
+        expect(listResponse.properties.pagination.properties.page.type).toBe("integer");
+        expect(listResponse.properties.pagination.properties.limit.type).toBe("integer");
+        expect(listResponse.properties.pagination.properties.total.type).toBe("integer");
+        expect(listResponse.properties.pagination.properties.totalPages.type).toBe("integer");
+    });
+
+    it("should validate UpdateDiscountInput allows partial updates", () => {
+        const updateSchema = swaggerSpec.components.schemas.UpdateDiscountInput;
+
+        // All fields should be optional for PATCH
+        expect(updateSchema.required).toBeUndefined();
+        expect(updateSchema.properties.code).toBeDefined();
+        expect(updateSchema.properties.type).toBeDefined();
+        expect(updateSchema.properties.value).toBeDefined();
+    });
+
+    it("should validate discount timestamps", () => {
+        const discountSchema = swaggerSpec.components.schemas.Discount;
+
+        expect(discountSchema.properties.created_at.type).toBe("string");
+        expect(discountSchema.properties.created_at.format).toBe("date-time");
+        expect(discountSchema.properties.updated_at.type).toBe("string");
+        expect(discountSchema.properties.updated_at.format).toBe("date-time");
+        expect(discountSchema.properties.started_at.type).toBe("string");
+        expect(discountSchema.properties.started_at.format).toBe("date-time");
+        expect(discountSchema.properties.expiry_date.type).toBe("string");
+        expect(discountSchema.properties.expiry_date.format).toBe("date-time");
+    });
+
+    it("should validate discount usage fields", () => {
+        const discountSchema = swaggerSpec.components.schemas.Discount;
+
+        expect(discountSchema.properties.usage_limit.type).toBe("integer");
+        expect(discountSchema.properties.usage_limit.minimum).toBe(1);
+        expect(discountSchema.properties.usage_per_user_limit.type).toBe("integer");
+        expect(discountSchema.properties.usage_per_user_limit.minimum).toBe(1);
+        expect(discountSchema.properties.usage_count.type).toBe("integer");
+        expect(discountSchema.properties.usage_count.minimum).toBe(0);
+        expect(discountSchema.properties.usage_percentage.type).toBe("number");
+    });
+
+    it("should validate discount stacking fields", () => {
+        const discountSchema = swaggerSpec.components.schemas.Discount;
+
+        expect(discountSchema.properties.is_stackable.type).toBe("boolean");
+        expect(discountSchema.properties.is_stackable.example).toBe(false);
+        expect(discountSchema.properties.stack_priority.type).toBe("integer");
+        expect(discountSchema.properties.stack_priority.example).toBe(0);
+    });
+
+    // ===== DISCOUNT ENDPOINT VALIDATION =====
+
+    it("should validate all discount endpoints have proper error responses", () => {
+        const discountEndpoints = [
+            ["/api/v1/discounts/validate", "post"],
+            ["/api/v1/discounts/applicable", "post"],
+            ["/api/v1/discounts", "post"],
+            ["/api/v1/discounts", "get"],
+            ["/api/v1/discounts/{discountId}", "get"],
+            ["/api/v1/discounts/{discountId}", "patch"],
+            ["/api/v1/discounts/{discountId}", "delete"],
+            ["/api/v1/discounts/{discountId}/revoke", "post"],
+            ["/api/v1/discounts/{discountId}/duplicate", "post"],
+            ["/api/v1/discounts/{discountId}/stats", "get"],
+            ["/api/v1/discounts/bulk/import", "post"],
+            ["/api/v1/discounts/near-expiry", "get"],
+            ["/api/v1/admin/discounts/stats", "get"],
+        ];
+
+        discountEndpoints.forEach(([path, method]) => {
+            const route = getPath(path, method);
+            expect(route).toBeDefined();
+            expect(route.responses["500"]).toBeDefined();
+        });
+    });
+
+    it("should validate public discount endpoints don't require auth", () => {
+        const publicEndpoints = [
+            ["/api/v1/discounts/validate", "post"],
+            ["/api/v1/discounts/applicable", "post"],
+        ];
+
+        publicEndpoints.forEach(([path, method]) => {
+            const route = getPath(path, method);
+            expect(route.security).toEqual([]);
+        });
+    });
+
+    it("should validate admin discount endpoints require auth", () => {
+        const adminEndpoints = [
+            ["/api/v1/discounts", "post"],
+            ["/api/v1/discounts", "get"],
+            ["/api/v1/discounts/{discountId}", "get"],
+            ["/api/v1/discounts/{discountId}", "patch"],
+            ["/api/v1/discounts/{discountId}", "delete"],
+            ["/api/v1/discounts/{discountId}/revoke", "post"],
+            ["/api/v1/discounts/{discountId}/duplicate", "post"],
+            ["/api/v1/discounts/{discountId}/stats", "get"],
+            ["/api/v1/discounts/bulk/import", "post"],
+            ["/api/v1/discounts/near-expiry", "get"],
+            ["/api/v1/admin/discounts/stats", "get"],
+        ];
+
+        adminEndpoints.forEach(([path, method]) => {
+            const route = getPath(path, method);
+            expect(route.security).toEqual([{ bearerAuth: [] }]);
+        });
+    });
+
+    it("should validate discount response uses proper DTO refs", () => {
+        const discountResponse = swaggerSpec.components.schemas.DiscountResponse;
+
+        expect(discountResponse.required).toContain("success");
+        expect(discountResponse.required).toContain("data");
+        expect(discountResponse.properties.data.$ref).toBe("#/components/schemas/Discount");
+    });
+
+    it("should validate discount list response structure", () => {
+        const listResponse = swaggerSpec.components.schemas.DiscountsListResponse;
+
+        expect(listResponse.properties.data.type).toBe("array");
+        expect(listResponse.properties.data.items.$ref).toBe(
+            "#/components/schemas/DiscountListItem"
+        );
+        expect(listResponse.properties.pagination).toBeDefined();
+    });
+
+    it("should validate discount type enum values", () => {
+        const createInput = swaggerSpec.components.schemas.CreateDiscountInput;
+        const discount = swaggerSpec.components.schemas.Discount;
+
+        expect(createInput.properties.type.enum).toEqual(["percent", "fixed"]);
+        expect(discount.properties.type.enum).toEqual(["percent", "fixed"]);
+    });
+
+    it("should validate discount status enum values", () => {
+        const discount = swaggerSpec.components.schemas.Discount;
+
+        expect(discount.properties.status.enum).toEqual([
+            "active",
+            "inactive",
+            "paused",
+            "expired",
+        ]);
+    });
+
+    it("should validate discount code format constraints", () => {
+        const createInput = swaggerSpec.components.schemas.CreateDiscountInput;
+
+        expect(createInput.properties.code.minLength).toBe(3);
+        expect(createInput.properties.code.maxLength).toBe(20);
+        expect(createInput.properties.code.pattern).toBe("^[A-Z0-9_-]+$");
+    });
+
+    it("should validate discount value constraints", () => {
+        const createInput = swaggerSpec.components.schemas.CreateDiscountInput;
+
+        expect(createInput.properties.value.minimum).toBe(0);
+        expect(createInput.properties.max_discount_amount.minimum).toBe(0);
+    });
+
+    it("should validate discount usage limit constraints", () => {
+        const createInput = swaggerSpec.components.schemas.CreateDiscountInput;
+
+        expect(createInput.properties.usage_limit.minimum).toBe(1);
+        expect(createInput.properties.usage_per_user_limit.minimum).toBe(1);
+    });
+
+    it("should validate discount list supports filtering", () => {
+        const route = getPath("/api/v1/discounts", "get");
+        const statusParam = route.parameters.find((p) => p.name === "status");
+        const typeParam = route.parameters.find((p) => p.name === "type");
+        const searchParam = route.parameters.find((p) => p.name === "search");
+
+        expect(statusParam).toBeDefined();
+        expect(typeParam).toBeDefined();
+        expect(searchParam).toBeDefined();
+    });
+
+    it("should validate bulk import accepts array of discounts", () => {
+        const bulkSchema = swaggerSpec.components.schemas.BulkCreateDiscountInput;
+
+        expect(bulkSchema.type).toBe("array");
+        expect(bulkSchema.items.required).toContain("code");
+        expect(bulkSchema.items.required).toContain("type");
+        expect(bulkSchema.items.required).toContain("value");
+    });
+
+    it("should validate ValidateDiscountResponse includes formatted prices", () => {
+        const responseSchema = swaggerSpec.components.schemas.DiscountValidationResponse;
+
+        expect(responseSchema.properties.discount_amount_formatted.type).toBe("string");
+        expect(responseSchema.properties.final_total_formatted.type).toBe("string");
+        expect(responseSchema.properties.you_save_formatted.type).toBe("string");
+    });
+
+    it("should validate discount near-expiry uses days parameter", () => {
+        const route = getPath("/api/v1/discounts/near-expiry", "get");
+        const daysParam = route.parameters.find((p) => p.name === "days");
+
+        expect(daysParam).toBeDefined();
+        expect(daysParam.schema.type).toBe("integer");
+        expect(daysParam.schema.minimum).toBe(1);
+        expect(daysParam.schema.default).toBe(7);
+    });
+
+    it("should validate admin stats endpoint returns aggregated data", () => {
+        const route = getPath("/api/v1/admin/discounts/stats", "get");
+        const responseSchema = swaggerSpec.components.schemas.DiscountStatsResponseWrapper;
+
+        expect(route.tags).toContain("Discounts");
+        expect(responseSchema.properties.data.properties.total_discounts).toBeDefined();
+        expect(responseSchema.properties.data.properties.by_type).toBeDefined();
+        expect(responseSchema.properties.data.properties.by_status).toBeDefined();
+    });
+
+    it("should validate discount response includes time_remaining", () => {
+        const discountSchema = swaggerSpec.components.schemas.Discount;
+
+        expect(discountSchema.properties.time_remaining.type).toBe("string");
+        expect(discountSchema.properties.time_remaining.example).toBe("28 days remaining");
+    });
+
+    it("should validate duplicate discount requires new code parameter", () => {
+        const route = getPath("/api/v1/discounts/{discountId}/duplicate", "post");
+        const newCodeParam = route.parameters.find((p) => p.name === "new_code");
+
+        expect(newCodeParam).toBeDefined();
+        expect(newCodeParam.in).toBe("query");
+        expect(newCodeParam.required).toBe(true);
+        expect(newCodeParam.schema.minLength).toBe(3);
+        expect(newCodeParam.schema.maxLength).toBe(20);
+    });
+
+    it("should validate discount list items have usage percentage", () => {
+        const listItemSchema = swaggerSpec.components.schemas.DiscountListItem;
+
+        expect(listItemSchema.properties.usage_count.type).toBe("integer");
+        expect(listItemSchema.properties.usage_limit.type).toBe("integer");
+        expect(listItemSchema.properties.usage_percentage.type).toBe("number");
+    });
+
 });

@@ -6,17 +6,11 @@ const authRoutes = require("../modules/auth/auth.routes");
 const userRoutes = require("../modules/users/user.routes");
 const userAddressRoutes = require("../modules/user_addresses/user_addresses.routes");
 const categoryRoutes = require("../modules/categories/category.routes");
-
-// ===== IMPORT NEW PRODUCT MODULE ROUTES =====
 const productModuleRoutes = require("../modules/products/routes");
-
-// ===== DISCOUNT ROUTES =====
 const discountRoutes = require("../modules/discounts/discount.routes");
-
-// ===== FUTURE ROUTES (Placeholder) =====
 const cartRoutes = require("../modules/carts/cart.routes");
-// const orderRoutes = require("../modules/orders/order.routes");
-// const paymentRoutes = require("../modules/payments/payment.routes");
+const shipmentRoutes = require('../modules/shipments/shipment.routes');
+
 
 // ============================================================================
 // ===== MOUNT ALL ROUTES =====
@@ -40,6 +34,10 @@ router.use("/carts", cartRoutes);
 // ✅ Mount discount routes at /discounts prefix
 router.use("/discounts", discountRoutes);
 
+// Mount at /api/v1/shipments
+router.use('/shipments', shipmentRoutes);
+
+
 // ✅ Product module routes (contains: products, variants, variant-units)
 // Routes structure:
 // - /products (GET all, POST create, etc.)
@@ -48,11 +46,6 @@ router.use("/discounts", discountRoutes);
 // - /variant-units/:unitId (GET, PATCH, DELETE unit)
 // - /variants/:variantId/units (GET units, POST create unit)
 router.use("/", productModuleRoutes);
-
-// ===== FUTURE ROUTES (Add when ready) =====
-// router.use("/carts", cartRoutes);
-// router.use("/orders", orderRoutes);
-// router.use("/payments", paymentRoutes);
 
 // ============================================================================
 // ===== 404 HANDLER =====

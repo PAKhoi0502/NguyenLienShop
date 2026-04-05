@@ -7,7 +7,7 @@ const swaggerSpec = {
         title: "NguyenLien API",
         version: "1.0.0",
         description:
-            "Manager API Documentation. Chuẩn Bearer dùng cho route gắn authMiddleware (ghi `security: [{ bearerAuth: [] }]` trên từng operation). Auth cookie: refresh token.",
+            "Manager API Documentation.",
     },
     servers: [{ url: "http://localhost:5000" }],
     tags: [
@@ -60,6 +60,10 @@ const swaggerSpec = {
             name: "Discounts",
             description:
                 "Quản lý mã giảm giá / voucher: tạo, cập nhật, danh sách, validate code, bulk import, thống kê sử dụng.",
+        },
+        {
+            name: "Shipments",
+            description: "Quản lý vận chuyển: tạo, theo dõi, cập nhật trạng thái, và quản lý admin.",
         },
     ],
     components: {
@@ -2981,6 +2985,229 @@ const swaggerSpec = {
                 required: ["success", "data"],
             },
 
+            // SHIPMENT ROUTES
+            ShippingAddress: {
+                type: 'object',
+                required: ['recipient_name', 'phone', 'address', 'ward', 'district', 'province'],
+                properties: {
+                    recipient_name: { type: 'string', example: 'Nguyễn Văn A' },
+                    phone: { type: 'string', example: '0912345678' },
+                    address: { type: 'string', example: '123 Đường ABC' },
+                    ward: { type: 'string', example: 'Phường 1' },
+                    district: { type: 'string', example: 'Quận 1' },
+                    province: { type: 'string', example: 'TP. Hồ Chí Minh' },
+                    postal_code: { type: 'string', example: '70000' },
+                    country: { type: 'string', default: 'Vietnam' },
+                },
+            },
+
+            Timeline: {
+                type: 'object',
+                properties: {
+                    created_at: { type: 'string', format: 'date-time' },
+                    picked_up_at: { type: 'string', format: 'date-time', nullable: true },
+                    in_transit_at: { type: 'string', format: 'date-time', nullable: true },
+                    at_destination_at: { type: 'string', format: 'date-time', nullable: true },
+                    delivered_at: { type: 'string', format: 'date-time', nullable: true },
+                    failed_at: { type: 'string', format: 'date-time', nullable: true },
+                    cancelled_at: { type: 'string', format: 'date-time', nullable: true },
+                    returned_at: { type: 'string', format: 'date-time', nullable: true },
+                },
+            },
+
+            FailureInfo: {
+                type: 'object',
+                nullable: true,
+                properties: {
+                    reason: {
+                        type: 'string',
+                        enum: ['address_incorrect', 'recipient_unavailable', 'refused_delivery', 'damaged_package', 'lost', 'weather_delay', 'carrier_error', 'other'],
+                    },
+                    reason_label: { type: 'string' },
+                    notes: { type: 'string' },
+                    retry_count: { type: 'integer', minimum: 0 },
+                    max_retries: { type: 'integer' },
+                    can_retry: { type: 'boolean' },
+                    last_retry_at: { type: 'string', format: 'date-time', nullable: true },
+                    next_retry_available_at: { type: 'string', format: 'date-time' },
+                },
+            },
+
+            ShipmentDTO: {
+                type: 'object',
+                properties: {
+                    id: { type: 'string' },
+                    order_id: { type: 'string' },
+                    carrier: { type: 'string', enum: ['GHN', 'GHTK', 'JT', 'GRAB', 'BEST', 'OTHER'] },
+                    tracking_code: { type: 'string' },
+                    tracking_url: { type: 'string', nullable: true },
+                    shipping_address: { $ref: '#/components/schemas/ShippingAddress' },
+                    status: { type: 'string', enum: ['pending', 'picked_up', 'in_transit', 'at_destination', 'delivered', 'failed', 'cancelled', 'returned'] },
+                    status_label: { type: 'string' },
+                    timeline: { $ref: '#/components/schemas/Timeline' },
+                    progress: { type: 'integer', minimum: 0, maximum: 100 },
+                    failure: { $ref: '#/components/schemas/FailureInfo' },
+                    created_at: { type: 'string', format: 'date-time' },
+                    updated_at: { type: 'string', format: 'date-time' },
+                },
+            },
+
+            ShipmentListDTO: {
+                type: 'object',
+                properties: {
+                    id: { type: 'string' },
+                    order_id: { type: 'string' },
+                    carrier: { type: 'string' },
+                    tracking_code: { type: 'string' },
+                    status: { type: 'string' },
+                    status_label: { type: 'string' },
+                    progress: { type: 'integer' },
+                    recipient_name: { type: 'string' },
+                    destination: { type: 'string' },
+                    created_at: { type: 'string', format: 'date-time' },
+                    delivered_at: { type: 'string', format: 'date-time', nullable: true },
+                },
+            },
+
+            TrackingDTO: {
+                type: 'object',
+                properties: {
+                    order_id: { type: 'string' },
+                    status: { type: 'string' },
+                    status_label: { type: 'string' },
+                    progress: { type: 'integer' },
+                    carrier: { type: 'string' },
+                    tracking_code: { type: 'string' },
+                    tracking_url: { type: 'string', nullable: true },
+                    timeline: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                timestamp: { type: 'string', format: 'date-time' },
+                                timestamp_formatted: { type: 'string' },
+                                status: { type: 'string' },
+                                label: { type: 'string' },
+                            },
+                        },
+                    },
+                    destination: { type: 'string' },
+                    estimated_delivery: { type: 'string' },
+                    last_update: { type: 'string', format: 'date-time' },
+                },
+            },
+
+            PaginationMeta: {
+                type: 'object',
+                properties: {
+                    page: {
+                        type: 'integer'
+                    },
+                    limit: {
+                        type: 'integer'
+                    },
+                    total: {
+                        type: 'integer'
+                    },
+                    totalPages: {
+                        type: 'integer'
+                    }
+                }
+            },
+
+            ErrorResponse: {
+                type: 'object',
+                properties: {
+                    success: {
+                        type: 'boolean',
+                        example: false
+                    },
+                    code: {
+                        type: 'string',
+                        example: 'SHIPMENT_NOT_FOUND'
+                    },
+                    message: {
+                        type: 'string',
+                        example: 'Shipment not found'
+                    }
+                }
+            },
+
+            CreateShipmentInput: {
+                type: 'object',
+                required: ['order_id', 'carrier', 'tracking_code'],
+                properties: {
+                    order_id: { type: 'string', pattern: '^[a-fA-F0-9]{24}$' },
+                    carrier: { type: 'string', enum: ['GHN', 'GHTK', 'JT', 'GRAB', 'BEST', 'OTHER'] },
+                    tracking_code: { type: 'string', minLength: 5, maxLength: 100, pattern: '^[A-Z0-9\\-_]+$' },
+                    shipping_address: { $ref: '#/components/schemas/ShippingAddress' },
+                },
+            },
+
+            UpdateShipmentStatusInput: {
+                type: 'object',
+                required: ['status'],
+                properties: {
+                    status: {
+                        type: 'string',
+                        enum: ['pending', 'picked_up', 'in_transit', 'at_destination', 'delivered', 'failed', 'cancelled', 'returned'],
+                    },
+                    notes: { type: 'string', maxLength: 500 },
+                },
+            },
+
+            RecordShipmentFailureInput: {
+                type: 'object',
+                required: ['failure_reason'],
+                properties: {
+                    failure_reason: {
+                        type: 'string',
+                        enum: ['address_incorrect', 'recipient_unavailable', 'refused_delivery', 'damaged_package', 'lost', 'weather_delay', 'carrier_error', 'other'],
+                    },
+                    failure_notes: { type: 'string', maxLength: 500 },
+                },
+            },
+
+            CancelShipmentInput: {
+                type: 'object',
+                required: ['reason'],
+                properties: {
+                    reason: { type: 'string', minLength: 5, maxLength: 500 },
+                },
+            },
+
+            // ===== RESPONSE SCHEMAS =====
+
+            ShipmentResponse: {
+                type: 'object',
+                required: ['success', 'data'],
+                properties: {
+                    success: { type: 'boolean' },
+                    data: { $ref: '#/components/schemas/ShipmentDTO' },
+                },
+            },
+
+            ShipmentsListResponse: {
+                type: 'object',
+                required: ['success', 'data', 'pagination'],
+                properties: {
+                    success: { type: 'boolean' },
+                    data: {
+                        type: 'array',
+                        items: { $ref: '#/components/schemas/ShipmentListDTO' },
+                    },
+                    pagination: { $ref: '#/components/schemas/PaginationMeta' },
+                },
+            },
+
+            TrackingResponse: {
+                type: 'object',
+                required: ['success', 'data'],
+                properties: {
+                    success: { type: 'boolean' },
+                    data: { $ref: '#/components/schemas/TrackingDTO' },
+                },
+            },
         },
     },
     paths: {
@@ -6345,6 +6572,504 @@ const swaggerSpec = {
                 },
             },
         },
+
+        // SHIPMENT ROUTES
+        "/api/v1/shipments/track/{tracking_code}": {
+            get: {
+                tags: ['Shipments'],
+                summary: 'Track shipment by tracking code',
+                description: 'Track shipment công khai (không cần xác thực). Lấy thông tin vận chuyển theo tracking code.',
+                security: [],
+                parameters: [
+                    {
+                        name: 'tracking_code',
+                        in: 'path',
+                        required: true,
+                        schema: { type: 'string' },
+                        description: 'Carrier tracking code'
+                    }
+                ],
+                responses: {
+                    200: {
+                        description: 'Shipment tracking information',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    $ref: '#/components/schemas/TrackingDTO'  // ← Change from TrackingResponse
+                                }
+                            }
+                        }
+                    },
+                    404: { $ref: '#/components/responses/NotFound' }
+                }
+            }
+        },
+
+        "/api/v1/shipments/webhook/{carrier}": {
+            post: {
+                tags: ['Shipments'],
+                summary: 'Carrier webhook for status updates',
+                description: 'Carrier webhook để nhận cập nhật vận chuyển. Không cần xác thực.',  // ← ADD THIS
+                security: [],
+                parameters: [
+                    {
+                        name: 'carrier',
+                        in: 'path',
+                        required: true,
+                        schema: {
+                            type: 'string',
+                            enum: ['GHN', 'GHTK', 'JT', 'GRAB', 'BEST', 'OTHER']
+                        }
+                    }
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: {
+                                type: 'object',
+                                required: ['tracking_code', 'status'],
+                                properties: {
+                                    tracking_code: { type: 'string' },
+                                    status: { type: 'string' },
+                                    signature: { type: 'string' },
+                                    carrier_details: { type: 'object' },
+                                    timestamp: { type: 'number' }
+                                }
+                            }
+                        }
+                    }
+                },
+                responses: {
+                    200: {
+                        description: 'Webhook processed successfully',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    properties: {
+                                        success: { type: 'boolean' }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    400: { $ref: '#/components/responses/BadRequest' }
+                }
+            }
+        },
+
+        "/api/v1/shipments/{shipmentId}": {
+            get: {
+                tags: ['Shipments'],
+                summary: 'Get shipment details',
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        name: 'shipmentId',
+                        in: 'path',
+                        required: true,
+                        schema: { type: 'string', pattern: '^[a-fA-F0-9]{24}$' }
+                    }
+                ],
+                responses: {
+                    200: {
+                        description: 'Shipment details',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    $ref: '#/components/schemas/ShipmentResponse'  // ← Use $ref directly
+                                }
+                            }
+                        }
+                    },
+                    401: { $ref: '#/components/responses/Unauthorized' },
+                    404: { $ref: '#/components/responses/NotFound' }
+                }
+            }
+        },
+
+        "/api/v1/orders/{orderId}/shipments": {
+            get: {
+                tags: ['Shipments'],
+                summary: 'Get shipments for order',
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        name: 'orderId',
+                        in: 'path',
+                        required: true,
+                        schema: { type: 'string', pattern: '^[a-fA-F0-9]{24}$' }
+                    }
+                ],
+                responses: {
+                    200: {
+                        description: 'Order shipments',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    $ref: '#/components/schemas/ShipmentsListResponse'  // ← Use $ref directly
+                                }
+                            }
+                        }
+                    },
+                    401: { $ref: '#/components/responses/Unauthorized' }
+                }
+            }
+        },
+
+        "/api/v1/shipments": {
+            get: {
+                tags: ['Shipments'],
+                summary: 'List user shipments',
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        name: 'page',
+                        in: 'query',
+                        schema: { type: 'integer', default: 1 }
+                    },
+                    {
+                        name: 'limit',
+                        in: 'query',
+                        schema: { type: 'integer', default: 20, maximum: 100 }
+                    },
+                    {
+                        name: 'status',
+                        in: 'query',
+                        schema: { type: 'string' },
+                        description: 'Comma-separated status values'
+                    },
+                    {
+                        name: 'carrier',
+                        in: 'query',
+                        schema: { type: 'string', enum: ['GHN', 'GHTK', 'JT', 'GRAB', 'BEST', 'OTHER'] }
+                    },
+                    {
+                        name: 'date_from',
+                        in: 'query',
+                        schema: { type: 'string', format: 'date-time' }
+                    },
+                    {
+                        name: 'date_to',
+                        in: 'query',
+                        schema: { type: 'string', format: 'date-time' }
+                    }
+                ],
+                responses: {
+                    200: {
+                        description: 'List of shipments',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    $ref: '#/components/schemas/ShipmentsListResponse'  // ← Use $ref directly
+                                }
+                            }
+                        }
+                    },
+                    401: { $ref: '#/components/responses/Unauthorized' }
+                }
+            },
+            post: {
+                tags: ['Shipments'],
+                summary: 'Create shipment (admin only)',
+                security: [{ bearerAuth: [] }],
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: {
+                                $ref: '#/components/schemas/CreateShipmentInput'  // ← Use $ref directly
+                            }
+                        }
+                    }
+                },
+                responses: {
+                    201: {
+                        description: 'Shipment created',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    $ref: '#/components/schemas/ShipmentResponse'  // ← Use $ref directly
+                                }
+                            }
+                        }
+                    },
+                    400: { $ref: '#/components/responses/BadRequest' },
+                    401: { $ref: '#/components/responses/Unauthorized' }
+                }
+            }
+        },
+
+        "/api/v1/shipments/{shipmentId}/status": {
+            patch: {
+                tags: ['Shipments'],
+                summary: 'Update shipment status (admin only)',
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        name: 'shipmentId',
+                        in: 'path',
+                        required: true,
+                        schema: { type: 'string', pattern: '^[a-fA-F0-9]{24}$' }
+                    }
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: {
+                                $ref: '#/components/schemas/UpdateShipmentStatusInput'  // ← Use $ref directly
+                            }
+                        }
+                    }
+                },
+                responses: {
+                    200: {
+                        description: 'Status updated',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    $ref: '#/components/schemas/ShipmentResponse'
+                                }
+                            }
+                        }
+                    },
+                    400: { $ref: '#/components/responses/BadRequest' },
+                    401: { $ref: '#/components/responses/Unauthorized' },
+                    409: { $ref: '#/components/responses/Conflict' }
+                }
+            }
+        },
+
+        "/api/v1/shipments/{shipmentId}/failure": {
+            patch: {
+                tags: ['Shipments'],
+                summary: 'Record delivery failure (admin only)',
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        name: 'shipmentId',
+                        in: 'path',
+                        required: true,
+                        schema: { type: 'string', pattern: '^[a-fA-F0-9]{24}$' }
+                    }
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: {
+                                $ref: '#/components/schemas/RecordShipmentFailureInput'  // ← Use $ref directly
+                            }
+                        }
+                    }
+                },
+                responses: {
+                    200: {
+                        description: 'Failure recorded',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    $ref: '#/components/schemas/ShipmentResponse'
+                                }
+                            }
+                        }
+                    },
+                    400: { $ref: '#/components/responses/BadRequest' },
+                    401: { $ref: '#/components/responses/Unauthorized' }
+                }
+            }
+        },
+
+        "/api/v1/shipments/{shipmentId}/retry": {
+            post: {
+                tags: ['Shipments'],
+                summary: 'Retry failed shipment',
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        name: 'shipmentId',
+                        in: 'path',
+                        required: true,
+                        schema: { type: 'string', pattern: '^[a-fA-F0-9]{24}$' }
+                    }
+                ],
+                responses: {
+                    200: {
+                        description: 'Shipment retry initiated',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    $ref: '#/components/schemas/ShipmentResponse'
+                                }
+                            }
+                        }
+                    },
+                    401: { $ref: '#/components/responses/Unauthorized' },
+                    409: { $ref: '#/components/responses/Conflict' }
+                }
+            }
+        },
+
+        "/api/v1/shipments/{shipmentId}/cancel": {
+            patch: {
+                tags: ['Shipments'],
+                summary: 'Cancel shipment',
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        name: 'shipmentId',
+                        in: 'path',
+                        required: true,
+                        schema: { type: 'string', pattern: '^[a-fA-F0-9]{24}$' }
+                    }
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: {
+                                $ref: '#/components/schemas/CancelShipmentInput'  // ← Use $ref directly
+                            }
+                        }
+                    }
+                },
+                responses: {
+                    200: {
+                        description: 'Shipment cancelled',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    $ref: '#/components/schemas/ShipmentResponse'
+                                }
+                            }
+                        }
+                    },
+                    400: { $ref: '#/components/responses/BadRequest' },
+                    401: { $ref: '#/components/responses/Unauthorized' }
+                }
+            }
+        },
+
+        "/api/v1/shipments/{shipmentId}/confirm-delivery": {
+            post: {
+                tags: ['Shipments'],
+                summary: 'Confirm delivery (admin only)',
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        name: 'shipmentId',
+                        in: 'path',
+                        required: true,
+                        schema: { type: 'string', pattern: '^[a-fA-F0-9]{24}$' }
+                    }
+                ],
+                responses: {
+                    200: {
+                        description: 'Delivery confirmed',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    $ref: '#/components/schemas/ShipmentResponse'
+                                }
+                            }
+                        }
+                    },
+                    401: { $ref: '#/components/responses/Unauthorized' },
+                    409: { $ref: '#/components/responses/Conflict' }
+                }
+            }
+        },
+
+        "/api/v1/admin/shipments": {
+            get: {
+                tags: ['Shipments'],
+                summary: 'List all shipments (admin only)',
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        name: 'page',
+                        in: 'query',
+                        schema: { type: 'integer', default: 1 }
+                    },
+                    {
+                        name: 'limit',
+                        in: 'query',
+                        schema: { type: 'integer', default: 20 }
+                    },
+                    {
+                        name: 'status',
+                        in: 'query',
+                        schema: { type: 'string' }
+                    },
+                    {
+                        name: 'carrier',
+                        in: 'query',
+                        schema: { type: 'string' }
+                    },
+                    {
+                        name: 'user_id',
+                        in: 'query',
+                        schema: { type: 'string', pattern: '^[a-fA-F0-9]{24}$' }
+                    },
+                    {
+                        name: 'order_id',
+                        in: 'query',
+                        schema: { type: 'string', pattern: '^[a-fA-F0-9]{24}$' }
+                    },
+                    {
+                        name: 'date_from',
+                        in: 'query',
+                        schema: { type: 'string', format: 'date-time' }
+                    },
+                    {
+                        name: 'date_to',
+                        in: 'query',
+                        schema: { type: 'string', format: 'date-time' }
+                    }
+                ],
+                responses: {
+                    200: {
+                        description: 'All shipments',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    $ref: '#/components/schemas/ShipmentsListResponse'
+                                }
+                            }
+                        }
+                    },
+                    401: { $ref: '#/components/responses/Unauthorized' },
+                    403: { $ref: '#/components/responses/Forbidden' }
+                }
+            }
+        },
+
+        "/api/v1/admin/shipments/stats": {
+            get: {
+                tags: ['Shipments'],
+                summary: 'Get shipment statistics (admin only)',
+                security: [{ bearerAuth: [] }],
+                responses: {
+                    200: {
+                        description: 'Shipment statistics',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    properties: {
+                                        success: { type: 'boolean' },
+                                        data: { type: 'object' }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    401: { $ref: '#/components/responses/Unauthorized' }
+                }
+            }
+        }
     },
 };
 

@@ -10,6 +10,8 @@ const productModuleRoutes = require("../modules/products/routes");
 const discountRoutes = require("../modules/discounts/discount.routes");
 const cartRoutes = require("../modules/carts/cart.routes");
 const shipmentRoutes = require('../modules/shipments/shipment.routes');
+const reviewRoutes = require('../modules/reviews/review.routes');
+
 
 
 // ============================================================================
@@ -37,6 +39,8 @@ router.use("/discounts", discountRoutes);
 // Mount at /api/v1/shipments
 router.use('/shipments', shipmentRoutes);
 
+// Mount review routes
+router.use('/reviews', reviewRoutes);
 
 // ✅ Product module routes (contains: products, variants, variant-units)
 // Routes structure:

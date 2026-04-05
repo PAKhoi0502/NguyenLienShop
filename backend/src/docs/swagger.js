@@ -65,6 +65,10 @@ const swaggerSpec = {
             name: "Shipments",
             description: "Quản lý vận chuyển: tạo, theo dõi, cập nhật trạng thái, và quản lý admin.",
         },
+        {
+            name: "Reviews",
+            description: "Quản lý đánh giá sản phẩm: tạo, cập nhật, xóa review, đánh giá hữu ích, và moderation admin.",
+        }
     ],
     components: {
         securitySchemes: {
@@ -3207,6 +3211,249 @@ const swaggerSpec = {
                     success: { type: 'boolean' },
                     data: { $ref: '#/components/schemas/TrackingDTO' },
                 },
+            },
+
+            ReviewDTO: {
+                type: "object",
+                properties: {
+                    id: { type: "string", pattern: "^[a-fA-F0-9]{24}$", example: "507f1f77bcf86cd799439011" },
+                    user_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$", example: "507f1f77bcf86cd799439012" },
+                    product_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$", example: "507f1f77bcf86cd799439010" },
+                    variant_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$", example: "507f1f77bcf86cd799439011" },
+                    order_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$", example: "507f1f77bcf86cd799439013" },
+
+                    is_verified_purchase: { type: "boolean", example: true },
+
+                    rating: {
+                        type: "object",
+                        properties: {
+                            overall: { type: "integer", minimum: 1, maximum: 5, example: 5 },
+                            quality: { type: ["integer", "null"], minimum: 1, maximum: 5, nullable: true },
+                            value_for_money: { type: ["integer", "null"], minimum: 1, maximum: 5, nullable: true },
+                            delivery_speed: { type: ["integer", "null"], minimum: 1, maximum: 5, nullable: true },
+                        },
+                        required: ["overall"],
+                    },
+
+                    title: { type: "string", maxLength: 200, example: "Great product!", nullable: true },
+                    content: { type: "string", minLength: 10, maxLength: 5000, example: "This product exceeded my expectations..." },
+
+                    edit_count: { type: "integer", minimum: 0, example: 0 },
+                    edited_at: { type: "string", format: "date-time", nullable: true },
+
+                    helpful_count: { type: "integer", minimum: 0, example: 15 },
+                    unhelpful_count: { type: "integer", minimum: 0, example: 2 },
+                    user_vote: { type: ["string", "null"], enum: ["helpful", "unhelpful", null], example: null },
+
+                    is_approved: { type: "boolean", example: true },
+
+                    created_at: { type: "string", format: "date-time" },
+                    updated_at: { type: "string", format: "date-time" },
+                },
+                required: ["id", "user_id", "product_id", "variant_id", "order_id", "is_verified_purchase", "rating", "content", "created_at", "updated_at"],
+            },
+
+            ReviewListItem: {
+                type: "object",
+                properties: {
+                    id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    user_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    product_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    variant_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+
+                    rating: { type: "integer", minimum: 1, maximum: 5 },
+                    title: { type: "string", nullable: true },
+                    content: { type: "string" },
+
+                    is_verified_purchase: { type: "boolean" },
+                    helpful_count: { type: "integer" },
+                    unhelpful_count: { type: "integer" },
+                    user_vote: { type: ["string", "null"], enum: ["helpful", "unhelpful", null] },
+
+                    created_at: { type: "string", format: "date-time" },
+                    edited_at: { type: "string", format: "date-time", nullable: true },
+                },
+                required: ["id", "user_id", "product_id", "variant_id", "rating", "content", "created_at"],
+            },
+
+            AdminReviewDTO: {
+                allOf: [
+                    { $ref: "#/components/schemas/ReviewDTO" },
+                    {
+                        type: "object",
+                        properties: {
+                            is_flagged: { type: "boolean", example: false },
+                            flag_reason: { type: ["string", "null"], enum: ["spam", "inappropriate", "fake", "duplicate", "other"], nullable: true },
+                            approved_at: { type: "string", format: "date-time", nullable: true },
+                            approved_by: { type: "string", pattern: "^[a-fA-F0-9]{24}$", nullable: true },
+                            rejected_at: { type: "string", format: "date-time", nullable: true },
+                            rejection_reason: { type: "string", nullable: true },
+                            flagged_by: { type: "string", pattern: "^[a-fA-F0-9]{24}$", nullable: true },
+                        },
+                    },
+                ],
+            },
+
+            // Request/Response schemas
+            CreateReviewInput: {
+                type: "object",
+                properties: {
+                    product_id: {
+                        type: "string",
+                        pattern: "^[a-fA-F0-9]{24}$",
+                        description: "Product ID",
+                        example: "507f1f77bcf86cd799439010",
+                    },
+                    variant_id: {
+                        type: "string",
+                        pattern: "^[a-fA-F0-9]{24}$",
+                        description: "Variant ID",
+                        example: "507f1f77bcf86cd799439011",
+                    },
+                    order_id: {
+                        type: "string",
+                        pattern: "^[a-fA-F0-9]{24}$",
+                        description: "Order ID (must be completed)",
+                        example: "507f1f77bcf86cd799439013",
+                    },
+                    rating: {
+                        type: "integer",
+                        minimum: 1,
+                        maximum: 5,
+                        description: "Rating from 1-5",
+                        example: 5,
+                    },
+                    title: {
+                        type: "string",
+                        maxLength: 200,
+                        description: "Review title (optional)",
+                        example: "Great product!",
+                    },
+                    content: {
+                        type: "string",
+                        minLength: 10,
+                        maxLength: 5000,
+                        description: "Review content (minimum 10 chars)",
+                        example: "This product exceeded my expectations. Quality is excellent and delivery was fast.",
+                    },
+                },
+                required: ["product_id", "variant_id", "order_id", "rating", "content"],
+            },
+
+            UpdateReviewInput: {
+                type: "object",
+                properties: {
+                    rating: {
+                        type: "integer",
+                        minimum: 1,
+                        maximum: 5,
+                        description: "Rating (optional)",
+                    },
+                    title: {
+                        type: "string",
+                        maxLength: 200,
+                        description: "Review title (optional)",
+                    },
+                    content: {
+                        type: "string",
+                        minLength: 10,
+                        maxLength: 5000,
+                        description: "Review content (optional)",
+                    },
+                },
+            },
+
+            MarkHelpfulInput: {
+                type: "object",
+                properties: {
+                    helpful: {
+                        type: "boolean",
+                        description: "true = helpful, false = unhelpful",
+                        example: true,
+                    },
+                },
+                required: ["helpful"],
+            },
+
+            FlagReviewInput: {
+                type: "object",
+                properties: {
+                    reason: {
+                        type: "string",
+                        enum: ["spam", "inappropriate", "fake", "duplicate", "other"],
+                        description: "Flag reason",
+                        example: "spam",
+                    },
+                },
+                required: ["reason"],
+            },
+
+            RejectReviewInput: {
+                type: "object",
+                properties: {
+                    reason: {
+                        type: "string",
+                        minLength: 5,
+                        maxLength: 500,
+                        description: "Rejection reason",
+                        example: "Contains inappropriate language",
+                    },
+                },
+                required: ["reason"],
+            },
+
+            // Response schemas
+            ReviewResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: { $ref: "#/components/schemas/ReviewDTO" },
+                },
+                required: ["success", "data"],
+            },
+
+            ReviewsListResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/ReviewListItem" },
+                    },
+                    pagination: {
+                        type: "object",
+                        properties: {
+                            page: { type: "integer", minimum: 1, example: 1 },
+                            limit: { type: "integer", minimum: 1, example: 10 },
+                            total: { type: "integer", example: 25 },
+                            totalPages: { type: "integer", example: 3 },
+                        },
+                        required: ["page", "limit", "total", "totalPages"],
+                    },
+                },
+                required: ["success", "data", "pagination"],
+            },
+
+            AdminReviewsListResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/AdminReviewDTO" },
+                    },
+                    pagination: {
+                        type: "object",
+                        properties: {
+                            page: { type: "integer", minimum: 1, example: 1 },
+                            limit: { type: "integer", minimum: 1, example: 20 },
+                            total: { type: "integer", example: 50 },
+                            totalPages: { type: "integer", example: 3 },
+                        },
+                        required: ["page", "limit", "total", "totalPages"],
+                    },
+                },
+                required: ["success", "data", "pagination"],
             },
         },
     },
@@ -7069,7 +7316,477 @@ const swaggerSpec = {
                     401: { $ref: '#/components/responses/Unauthorized' }
                 }
             }
-        }
+        },
+
+        // Review routes
+        "/api/v1/reviews/product/{productId}": {
+            get: {
+                tags: ["Reviews"],
+                summary: "Get product reviews (public)",
+                security: [],
+                description: "Lấy danh sách review cho sản phẩm (chỉ approved reviews). Sắp xếp theo helpful_count rồi created_at.",
+                parameters: [
+                    {
+                        in: "path",
+                        name: "productId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                        description: "Product ID",
+                    },
+                    {
+                        in: "query",
+                        name: "page",
+                        schema: { type: "integer", minimum: 1, default: 1 },
+                    },
+                    {
+                        in: "query",
+                        name: "limit",
+                        schema: { type: "integer", minimum: 1, maximum: 50, default: 10 },
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/ReviewsListResponse" },
+                            },
+                        },
+                    },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/reviews/variant/{variantId}": {
+            get: {
+                tags: ["Reviews"],
+                summary: "Get variant reviews (public)",
+                security: [],
+                description: "Lấy danh sách review cho variant (chỉ approved reviews).",
+                parameters: [
+                    {
+                        in: "path",
+                        name: "variantId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                    {
+                        in: "query",
+                        name: "page",
+                        schema: { type: "integer", minimum: 1, default: 1 },
+                    },
+                    {
+                        in: "query",
+                        name: "limit",
+                        schema: { type: "integer", minimum: 1, maximum: 50, default: 10 },
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/ReviewsListResponse" },
+                            },
+                        },
+                    },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/reviews/{reviewId}": {
+            get: {
+                tags: ["Reviews"],
+                summary: "Get review detail (public)",
+                security: [],
+                parameters: [
+                    {
+                        in: "path",
+                        name: "reviewId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/ReviewResponse" },
+                            },
+                        },
+                    },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+
+            put: {
+                tags: ["Reviews"],
+                summary: "Update own review",
+                security: [{ bearerAuth: [] }],
+                description: "Cập nhật review của chính mình. Edit sẽ reset approval status.",
+                parameters: [
+                    {
+                        in: "path",
+                        name: "reviewId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/UpdateReviewInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/ReviewResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+
+            delete: {
+                tags: ["Reviews"],
+                summary: "Delete own review",
+                security: [{ bearerAuth: [] }],
+                description: "soft delete own review",
+                parameters: [
+                    {
+                        in: "path",
+                        name: "reviewId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: {
+                                        success: { type: "boolean", example: true },
+                                        message: { type: "string", example: "Review deleted successfully" },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/reviews": {
+            post: {
+                tags: ["Reviews"],
+                summary: "Create review",
+                security: [{ bearerAuth: [] }],
+                description: "Tạo review cho sản phẩm từ đơn hàng đã hoàn thành. Chỉ verified purchases được phép. Ban đầu pending approval.",
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/CreateReviewInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "201": {
+                        description: "Created",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/ReviewResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "409": { $ref: "#/components/responses/Conflict" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/reviews/{reviewId}/helpful": {
+            post: {
+                tags: ["Reviews"],
+                summary: "Mark review as helpful/unhelpful",
+                security: [{ bearerAuth: [] }],
+                description: "toggle helpful status (idempotent)",
+                parameters: [
+                    {
+                        in: "path",
+                        name: "reviewId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/MarkHelpfulInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: {
+                                        success: { type: "boolean", example: true },
+                                        message: { type: "string", example: "Vote recorded successfully" },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/reviews/{reviewId}/flag": {
+            post: {
+                tags: ["Reviews"],
+                summary: "Flag review for moderation",
+                security: [{ bearerAuth: [] }],
+                description: "flag review as inappropriate",
+                parameters: [
+                    {
+                        in: "path",
+                        name: "reviewId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/FlagReviewInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/ReviewResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/reviews/user/my-reviews": {
+            get: {
+                tags: ["Reviews"],
+                summary: "Get my reviews",
+                security: [{ bearerAuth: [] }],
+                description: "get own reviews including pending approval",
+                parameters: [
+                    {
+                        in: "query",
+                        name: "page",
+                        schema: { type: "integer", minimum: 1, default: 1 },
+                    },
+                    {
+                        in: "query",
+                        name: "limit",
+                        schema: { type: "integer", minimum: 1, maximum: 50, default: 10 },
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/ReviewsListResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/reviews/admin/pending": {
+            get: {
+                tags: ["Reviews"],
+                summary: "Get pending reviews (admin)",
+                security: [{ bearerAuth: [] }],
+                description: "Lấy danh sách review đang chờ duyệt. Admin moderation endpoint.",
+                parameters: [
+                    {
+                        in: "query",
+                        name: "page",
+                        schema: { type: "integer", minimum: 1, default: 1 },
+                    },
+                    {
+                        in: "query",
+                        name: "limit",
+                        schema: { type: "integer", minimum: 1, maximum: 100, default: 20 },
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/AdminReviewsListResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/reviews/admin/flagged": {
+            get: {
+                tags: ["Reviews"],
+                summary: "Get flagged reviews (admin)",
+                security: [{ bearerAuth: [] }],
+                description: "get flagged reviews for admin moderation",
+                parameters: [
+                    {
+                        in: "query",
+                        name: "page",
+                        schema: { type: "integer", minimum: 1, default: 1 },
+                    },
+                    {
+                        in: "query",
+                        name: "limit",
+                        schema: { type: "integer", minimum: 1, maximum: 100, default: 20 },
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/AdminReviewsListResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/reviews/{reviewId}/approve": {
+            post: {
+                tags: ["Reviews"],
+                summary: "Approve review (admin)",
+                security: [{ bearerAuth: [] }],
+                description: "approve review for public visibility",
+                parameters: [
+                    {
+                        in: "path",
+                        name: "reviewId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/ReviewResponse" },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
+        "/api/v1/reviews/{reviewId}/reject": {
+            post: {
+                tags: ["Reviews"],
+                summary: "Reject review (admin)",
+                security: [{ bearerAuth: [] }],
+                description: "reject review with reason",
+                parameters: [
+                    {
+                        in: "path",
+                        name: "reviewId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/RejectReviewInput" },
+                        },
+                    },
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/ReviewResponse" },
+                            },
+                        },
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
     },
 };
 

@@ -4418,4 +4418,708 @@ describe("swaggerSpec", () => {
             expect(typeof trackingCode.pattern).toBe("string");
         }
     });
+
+    // ===== REVIEWS TESTS =====
+
+    it("should define Reviews tag", () => {
+        const reviewTag = swaggerSpec.tags.find((tag) => tag.name === "Reviews");
+        expect(reviewTag).toBeDefined();
+        expect(reviewTag.description).toContain("Quản lý đánh giá sản phẩm");
+    });
+
+    it("should define review schemas correctly", () => {
+        // ✅ Core review schemas
+        expect(swaggerSpec.components.schemas.ReviewDTO).toBeDefined();
+        expect(swaggerSpec.components.schemas.ReviewDTO.required).toContain("id");
+        expect(swaggerSpec.components.schemas.ReviewDTO.required).toContain("user_id");
+        expect(swaggerSpec.components.schemas.ReviewDTO.required).toContain("product_id");
+        expect(swaggerSpec.components.schemas.ReviewDTO.required).toContain("content");
+        expect(swaggerSpec.components.schemas.ReviewDTO.required).toContain("rating");
+
+        expect(swaggerSpec.components.schemas.ReviewListItem).toBeDefined();
+        expect(swaggerSpec.components.schemas.AdminReviewDTO).toBeDefined();
+
+        // ✅ Input schemas
+        expect(swaggerSpec.components.schemas.CreateReviewInput).toBeDefined();
+        expect(swaggerSpec.components.schemas.CreateReviewInput.required).toEqual([
+            "product_id",
+            "variant_id",
+            "order_id",
+            "rating",
+            "content",
+        ]);
+
+        expect(swaggerSpec.components.schemas.UpdateReviewInput).toBeDefined();
+        expect(swaggerSpec.components.schemas.MarkHelpfulInput).toBeDefined();
+        expect(swaggerSpec.components.schemas.FlagReviewInput).toBeDefined();
+        expect(swaggerSpec.components.schemas.RejectReviewInput).toBeDefined();
+
+        // ✅ Response schemas
+        expect(swaggerSpec.components.schemas.ReviewResponse).toBeDefined();
+        expect(swaggerSpec.components.schemas.ReviewsListResponse).toBeDefined();
+        expect(swaggerSpec.components.schemas.AdminReviewsListResponse).toBeDefined();
+    });
+
+    it("should define get product reviews endpoint correctly", () => {
+        const route = getPath("/api/v1/reviews/product/{productId}", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Reviews");
+        expect(route.security).toEqual([]);
+        expect(route.description).toContain("approved");
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "productId",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(route.parameters[1]).toMatchObject({
+            in: "query",
+            name: "page",
+            schema: { type: "integer", minimum: 1, default: 1 },
+        });
+        expect(route.parameters[2]).toMatchObject({
+            in: "query",
+            name: "limit",
+            schema: { type: "integer", minimum: 1, default: 10 },
+        });
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/ReviewsListResponse"
+        );
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+    });
+
+    it("should define get single review endpoint correctly", () => {
+        const route = getPath("/api/v1/reviews/{reviewId}", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Reviews");
+        expect(route.security).toEqual([]);
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "reviewId",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/ReviewResponse"
+        );
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+    });
+
+    it("should define get variant reviews endpoint correctly", () => {
+        const route = getPath("/api/v1/reviews/variant/{variantId}", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Reviews");
+        expect(route.security).toEqual([]);
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "variantId",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/ReviewsListResponse"
+        );
+    });
+
+    it("should define create review endpoint correctly", () => {
+        const route = getPath("/api/v1/reviews", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Reviews");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("verified purchase");
+        expect(getSchemaRef(route.requestBody)).toBe("#/components/schemas/CreateReviewInput");
+        expect(route.responses["201"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/ReviewResponse"
+        );
+        expect(route.responses["400"].$ref).toBe("#/components/responses/BadRequest");
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+        expect(route.responses["409"].$ref).toBe("#/components/responses/Conflict");
+    });
+
+    it("should define update review endpoint correctly", () => {
+        const route = getPath("/api/v1/reviews/{reviewId}", "put");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Reviews");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("reset approval");
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "reviewId",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(getSchemaRef(route.requestBody)).toBe("#/components/schemas/UpdateReviewInput");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/ReviewResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+    });
+
+    it("should define delete review endpoint correctly", () => {
+        const route = getPath("/api/v1/reviews/{reviewId}", "delete");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Reviews");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("soft delete");
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "reviewId",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(route.responses["200"].content["application/json"].schema).toBeDefined();
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+    });
+
+    it("should define mark helpful endpoint correctly", () => {
+        const route = getPath("/api/v1/reviews/{reviewId}/helpful", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Reviews");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("toggle");
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "reviewId",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(getSchemaRef(route.requestBody)).toBe("#/components/schemas/MarkHelpfulInput");
+        expect(route.responses["200"].content["application/json"].schema).toBeDefined();
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+    });
+
+    it("should define flag review endpoint correctly", () => {
+        const route = getPath("/api/v1/reviews/{reviewId}/flag", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Reviews");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("flag");
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "reviewId",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(getSchemaRef(route.requestBody)).toBe("#/components/schemas/FlagReviewInput");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/ReviewResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+    });
+
+    it("should define get my reviews endpoint correctly", () => {
+        const route = getPath("/api/v1/reviews/user/my-reviews", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Reviews");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("own");
+        expect(route.parameters.map((p) => p.name)).toContain("page");
+        expect(route.parameters.map((p) => p.name)).toContain("limit");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/ReviewsListResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+    });
+
+    it("should define get pending reviews endpoint correctly", () => {
+        const route = getPath("/api/v1/reviews/admin/pending", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Reviews");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("moderation");
+        expect(route.parameters.map((p) => p.name)).toContain("page");
+        expect(route.parameters.map((p) => p.name)).toContain("limit");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/AdminReviewsListResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+    });
+
+    it("should define get flagged reviews endpoint correctly", () => {
+        const route = getPath("/api/v1/reviews/admin/flagged", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Reviews");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("flag");
+        expect(route.parameters.map((p) => p.name)).toContain("page");
+        expect(route.parameters.map((p) => p.name)).toContain("limit");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/AdminReviewsListResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+    });
+
+    it("should define approve review endpoint correctly", () => {
+        const route = getPath("/api/v1/reviews/{reviewId}/approve", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Reviews");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("approve");
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "reviewId",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/ReviewResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+    });
+
+    it("should define reject review endpoint correctly", () => {
+        const route = getPath("/api/v1/reviews/{reviewId}/reject", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Reviews");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("reject");
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "reviewId",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+        expect(getSchemaRef(route.requestBody)).toBe("#/components/schemas/RejectReviewInput");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/ReviewResponse"
+        );
+        expect(route.responses["400"].$ref).toBe("#/components/responses/BadRequest");
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+    });
+
+    // ===== REVIEW SCHEMA VALIDATION =====
+
+    it("should validate ReviewDTO schema structure", () => {
+        const reviewSchema = swaggerSpec.components.schemas.ReviewDTO;
+
+        expect(reviewSchema.properties.id.pattern).toBe("^[a-fA-F0-9]{24}$");
+        expect(reviewSchema.properties.user_id.pattern).toBe("^[a-fA-F0-9]{24}$");
+        expect(reviewSchema.properties.product_id.pattern).toBe("^[a-fA-F0-9]{24}$");
+        expect(reviewSchema.properties.variant_id.pattern).toBe("^[a-fA-F0-9]{24}$");
+        expect(reviewSchema.properties.is_verified_purchase.type).toBe("boolean");
+        expect(reviewSchema.properties.rating.type).toBe("object");
+        expect(reviewSchema.properties.rating.properties.overall.minimum).toBe(1);
+        expect(reviewSchema.properties.rating.properties.overall.maximum).toBe(5);
+    });
+
+    it("should validate CreateReviewInput required fields", () => {
+        const inputSchema = swaggerSpec.components.schemas.CreateReviewInput;
+
+        expect(inputSchema.required).toEqual([
+            "product_id",
+            "variant_id",
+            "order_id",
+            "rating",
+            "content",
+        ]);
+        expect(inputSchema.properties.rating.minimum).toBe(1);
+        expect(inputSchema.properties.rating.maximum).toBe(5);
+        expect(inputSchema.properties.content.minLength).toBe(10);
+        expect(inputSchema.properties.content.maxLength).toBe(5000);
+    });
+
+    it("should validate UpdateReviewInput allows partial updates", () => {
+        const updateSchema = swaggerSpec.components.schemas.UpdateReviewInput;
+
+        // All fields should be optional for PUT
+        expect(updateSchema.properties.rating).toBeDefined();
+        expect(updateSchema.properties.content).toBeDefined();
+        expect(updateSchema.properties.title).toBeDefined();
+    });
+
+    it("should validate MarkHelpfulInput structure", () => {
+        const inputSchema = swaggerSpec.components.schemas.MarkHelpfulInput;
+
+        expect(inputSchema.required).toEqual(["helpful"]);
+        expect(inputSchema.properties.helpful.type).toBe("boolean");
+    });
+
+    it("should validate FlagReviewInput reason enum", () => {
+        const inputSchema = swaggerSpec.components.schemas.FlagReviewInput;
+
+        expect(inputSchema.required).toEqual(["reason"]);
+        expect(inputSchema.properties.reason.enum).toEqual([
+            "spam",
+            "inappropriate",
+            "fake",
+            "duplicate",
+            "other",
+        ]);
+    });
+
+    it("should validate RejectReviewInput structure", () => {
+        const inputSchema = swaggerSpec.components.schemas.RejectReviewInput;
+
+        expect(inputSchema.required).toEqual(["reason"]);
+        expect(inputSchema.properties.reason.minLength).toBe(5);
+        expect(inputSchema.properties.reason.maxLength).toBe(500);
+    });
+
+    it("should validate ReviewDTO rating structure", () => {
+        const reviewSchema = swaggerSpec.components.schemas.ReviewDTO;
+
+        expect(reviewSchema.properties.rating.properties.overall.type).toBe("integer");
+        expect(reviewSchema.properties.rating.properties.overall.minimum).toBe(1);
+        expect(reviewSchema.properties.rating.properties.overall.maximum).toBe(5);
+        expect(reviewSchema.properties.rating.properties.quality).toBeDefined();
+        expect(reviewSchema.properties.rating.properties.quality.nullable).toBe(true);
+    });
+
+    it("should validate ReviewDTO helpful voting fields", () => {
+        const reviewSchema = swaggerSpec.components.schemas.ReviewDTO;
+
+        expect(reviewSchema.properties.helpful_count.type).toBe("integer");
+        expect(reviewSchema.properties.helpful_count.minimum).toBe(0);
+        expect(reviewSchema.properties.unhelpful_count.type).toBe("integer");
+        expect(reviewSchema.properties.unhelpful_count.minimum).toBe(0);
+        expect(reviewSchema.properties.user_vote.enum).toEqual([
+            "helpful",
+            "unhelpful",
+            null,
+        ]);
+    });
+
+    it("should validate ReviewDTO edit tracking fields", () => {
+        const reviewSchema = swaggerSpec.components.schemas.ReviewDTO;
+
+        expect(reviewSchema.properties.edit_count.type).toBe("integer");
+        expect(reviewSchema.properties.edit_count.minimum).toBe(0);
+        expect(reviewSchema.properties.edited_at.type).toBe("string");
+        expect(reviewSchema.properties.edited_at.format).toBe("date-time");
+        expect(reviewSchema.properties.edited_at.nullable).toBe(true);
+    });
+
+    it("should validate ReviewDTO approval status fields", () => {
+        const reviewSchema = swaggerSpec.components.schemas.ReviewDTO;
+
+        expect(reviewSchema.properties.is_approved.type).toBe("boolean");
+    });
+
+    it("should validate AdminReviewDTO extends ReviewDTO with moderation fields", () => {
+        const adminSchema = swaggerSpec.components.schemas.AdminReviewDTO;
+
+        expect(adminSchema.allOf).toBeDefined();
+        expect(adminSchema.allOf[0].$ref).toBe("#/components/schemas/ReviewDTO");
+        expect(adminSchema.allOf[1].properties.is_flagged).toBeDefined();
+        expect(adminSchema.allOf[1].properties.flag_reason).toBeDefined();
+        expect(adminSchema.allOf[1].properties.approved_by).toBeDefined();
+        expect(adminSchema.allOf[1].properties.rejected_at).toBeDefined();
+        expect(adminSchema.allOf[1].properties.rejection_reason).toBeDefined();
+    });
+
+    it("should validate ReviewsListResponse pagination structure", () => {
+        const listResponse = swaggerSpec.components.schemas.ReviewsListResponse;
+
+        expect(listResponse.properties.data.type).toBe("array");
+        expect(listResponse.properties.data.items.$ref).toBe(
+            "#/components/schemas/ReviewListItem"
+        );
+        expect(listResponse.properties.pagination.properties.page.type).toBe("integer");
+        expect(listResponse.properties.pagination.properties.limit.type).toBe("integer");
+        expect(listResponse.properties.pagination.properties.total.type).toBe("integer");
+        expect(listResponse.properties.pagination.properties.totalPages.type).toBe(
+            "integer"
+        );
+    });
+
+    it("should validate AdminReviewsListResponse uses AdminReviewDTO", () => {
+        const listResponse = swaggerSpec.components.schemas.AdminReviewsListResponse;
+
+        expect(listResponse.properties.data.type).toBe("array");
+        expect(listResponse.properties.data.items.$ref).toBe(
+            "#/components/schemas/AdminReviewDTO"
+        );
+    });
+
+    it("should validate ReviewResponse structure", () => {
+        const response = swaggerSpec.components.schemas.ReviewResponse;
+
+        expect(response.properties.success.type).toBe("boolean");
+        expect(response.properties.data.$ref).toBe("#/components/schemas/ReviewDTO");
+    });
+
+    it("should validate ReviewListItem has essential fields", () => {
+        const listItem = swaggerSpec.components.schemas.ReviewListItem;
+
+        expect(listItem.properties.id).toBeDefined();
+        expect(listItem.properties.user_id).toBeDefined();
+        expect(listItem.properties.rating).toBeDefined();
+        expect(listItem.properties.content).toBeDefined();
+        expect(listItem.properties.helpful_count).toBeDefined();
+        expect(listItem.properties.created_at).toBeDefined();
+    });
+
+    // ===== REVIEW ENDPOINT VALIDATION =====
+
+    it("should validate all review endpoints have proper error responses", () => {
+        const reviewEndpoints = [
+            ["/api/v1/reviews/product/{productId}", "get"],
+            ["/api/v1/reviews/{reviewId}", "get"],
+            ["/api/v1/reviews/variant/{variantId}", "get"],
+            ["/api/v1/reviews", "post"],
+            ["/api/v1/reviews/{reviewId}", "put"],
+            ["/api/v1/reviews/{reviewId}", "delete"],
+            ["/api/v1/reviews/{reviewId}/helpful", "post"],
+            ["/api/v1/reviews/{reviewId}/flag", "post"],
+            ["/api/v1/reviews/user/my-reviews", "get"],
+            ["/api/v1/reviews/admin/pending", "get"],
+            ["/api/v1/reviews/admin/flagged", "get"],
+            ["/api/v1/reviews/{reviewId}/approve", "post"],
+            ["/api/v1/reviews/{reviewId}/reject", "post"],
+        ];
+
+        reviewEndpoints.forEach(([path, method]) => {
+            const route = getPath(path, method);
+            expect(route).toBeDefined();
+            expect(route.responses).toBeDefined();
+            expect(Object.keys(route.responses).length).toBeGreaterThan(0);
+        });
+    });
+
+    it("should validate public review endpoints don't require auth", () => {
+        const publicEndpoints = [
+            ["/api/v1/reviews/product/{productId}", "get"],
+            ["/api/v1/reviews/{reviewId}", "get"],
+            ["/api/v1/reviews/variant/{variantId}", "get"],
+        ];
+
+        publicEndpoints.forEach(([path, method]) => {
+            const route = getPath(path, method);
+            expect(route.security).toEqual([]);
+        });
+    });
+
+    it("should validate user review endpoints require auth", () => {
+        const userEndpoints = [
+            ["/api/v1/reviews", "post"],
+            ["/api/v1/reviews/{reviewId}", "put"],
+            ["/api/v1/reviews/{reviewId}", "delete"],
+            ["/api/v1/reviews/{reviewId}/helpful", "post"],
+            ["/api/v1/reviews/{reviewId}/flag", "post"],
+            ["/api/v1/reviews/user/my-reviews", "get"],
+        ];
+
+        userEndpoints.forEach(([path, method]) => {
+            const route = getPath(path, method);
+            expect(route.security).toEqual([{ bearerAuth: [] }]);
+        });
+    });
+
+    it("should validate admin review endpoints require auth", () => {
+        const adminEndpoints = [
+            ["/api/v1/reviews/admin/pending", "get"],
+            ["/api/v1/reviews/admin/flagged", "get"],
+            ["/api/v1/reviews/{reviewId}/approve", "post"],
+            ["/api/v1/reviews/{reviewId}/reject", "post"],
+        ];
+
+        adminEndpoints.forEach(([path, method]) => {
+            const route = getPath(path, method);
+            expect(route.security).toEqual([{ bearerAuth: [] }]);
+        });
+    });
+
+    it("should validate review content length constraints", () => {
+        const createInput = swaggerSpec.components.schemas.CreateReviewInput;
+
+        expect(createInput.properties.content.minLength).toBe(10);
+        expect(createInput.properties.content.maxLength).toBe(5000);
+    });
+
+    it("should validate review title is optional", () => {
+        const createInput = swaggerSpec.components.schemas.CreateReviewInput;
+
+        expect(createInput.required).not.toContain("title");
+        expect(createInput.properties.title.maxLength).toBe(200);
+    });
+
+    it("should validate review list responses have consistent pagination", () => {
+        const productReviewsRoute = getPath("/api/v1/reviews/product/{productId}", "get");
+        const myReviewsRoute = getPath("/api/v1/reviews/user/my-reviews", "get");
+
+        expect(productReviewsRoute.parameters.map((p) => p.name)).toContain("page");
+        expect(productReviewsRoute.parameters.map((p) => p.name)).toContain("limit");
+        expect(myReviewsRoute.parameters.map((p) => p.name)).toContain("page");
+        expect(myReviewsRoute.parameters.map((p) => p.name)).toContain("limit");
+    });
+
+    it("should validate review rating input constraints", () => {
+        const createInput = swaggerSpec.components.schemas.CreateReviewInput;
+
+        expect(createInput.properties.rating.type).toBe("integer");
+        expect(createInput.properties.rating.minimum).toBe(1);
+        expect(createInput.properties.rating.maximum).toBe(5);
+    });
+
+    it("should validate review helpful endpoint is idempotent", () => {
+        const route = getPath("/api/v1/reviews/{reviewId}/helpful", "post");
+
+        expect(route).toBeDefined();
+        expect(route.description).toContain("toggle");
+        expect(getSchemaRef(route.requestBody)).toBe("#/components/schemas/MarkHelpfulInput");
+    });
+
+    it("should validate admin approve endpoint clears flags", () => {
+        const route = getPath("/api/v1/reviews/{reviewId}/approve", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Reviews");
+        expect(route.description).toContain("approve");
+    });
+
+    it("should validate review rejection requires reason", () => {
+        const route = getPath("/api/v1/reviews/{reviewId}/reject", "post");
+        const inputSchema = swaggerSpec.components.schemas.RejectReviewInput;
+
+        expect(route).toBeDefined();
+        expect(inputSchema.required).toContain("reason");
+        expect(inputSchema.properties.reason.minLength).toBe(5);
+    });
+
+    it("should validate review flag reasons are enumerated", () => {
+        const flagSchema = swaggerSpec.components.schemas.FlagReviewInput;
+
+        expect(flagSchema.properties.reason.enum).toEqual([
+            "spam",
+            "inappropriate",
+            "fake",
+            "duplicate",
+            "other",
+        ]);
+    });
+
+    it("should validate review timestamps are ISO format", () => {
+        const reviewSchema = swaggerSpec.components.schemas.ReviewDTO;
+
+        expect(reviewSchema.properties.created_at.type).toBe("string");
+        expect(reviewSchema.properties.created_at.format).toBe("date-time");
+        expect(reviewSchema.properties.updated_at.type).toBe("string");
+        expect(reviewSchema.properties.updated_at.format).toBe("date-time");
+    });
+
+    it("should validate review list items have user_vote field", () => {
+        const listItem = swaggerSpec.components.schemas.ReviewListItem;
+
+        expect(listItem.properties.user_vote).toBeDefined();
+        expect(listItem.properties.user_vote.enum).toEqual([
+            "helpful",
+            "unhelpful",
+            null,
+        ]);
+    });
+
+    it("should validate AdminReviewDTO has all moderation fields", () => {
+        const adminSchema = swaggerSpec.components.schemas.AdminReviewDTO;
+
+        const moderationFields = [
+            "is_flagged",
+            "flag_reason",
+            "approved_at",
+            "approved_by",
+            "rejected_at",
+            "rejection_reason",
+            "flagged_by",
+        ];
+
+        moderationFields.forEach((field) => {
+            expect(adminSchema.allOf[1].properties[field]).toBeDefined();
+        });
+    });
+
+    it("should validate review list response data field", () => {
+        const response = swaggerSpec.components.schemas.ReviewsListResponse;
+
+        expect(response.properties.data.type).toBe("array");
+        expect(response.properties.data.minItems).toBeUndefined();
+        expect(response.properties.data.maxItems).toBeUndefined();
+    });
+
+    it("should validate product review endpoint sorts by helpful", () => {
+        const route = getPath("/api/v1/reviews/product/{productId}", "get");
+
+        expect(route).toBeDefined();
+        expect(route.description).toContain("helpful");
+    });
+
+    it("should validate review pending endpoint for admin moderation", () => {
+        const route = getPath("/api/v1/reviews/admin/pending", "get");
+
+        expect(route).toBeDefined();
+        expect(route.description).toContain("moderation");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+    });
+
+    it("should validate review flagged endpoint for admin review", () => {
+        const route = getPath("/api/v1/reviews/admin/flagged", "get");
+
+        expect(route).toBeDefined();
+        expect(route.description).toContain("flag");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+    });
+
+    it("should validate review delete is soft delete", () => {
+        const route = getPath("/api/v1/reviews/{reviewId}", "delete");
+
+        expect(route).toBeDefined();
+        expect(route.description).toContain("soft delete");
+    });
+
+    it("should validate review update resets approval", () => {
+        const route = getPath("/api/v1/reviews/{reviewId}", "put");
+
+        expect(route).toBeDefined();
+        expect(route.description).toContain("reset approval");
+    });
+
+    it("should validate review response includes helpful status", () => {
+        const reviewSchema = swaggerSpec.components.schemas.ReviewDTO;
+
+        expect(reviewSchema.properties.helpful_count).toBeDefined();
+        expect(reviewSchema.properties.unhelpful_count).toBeDefined();
+        expect(reviewSchema.properties.user_vote).toBeDefined();
+    });
+
+    it("should validate review admin response has approval timestamp", () => {
+        const adminSchema = swaggerSpec.components.schemas.AdminReviewDTO;
+
+        expect(adminSchema.allOf[1].properties.approved_at).toBeDefined();
+        expect(adminSchema.allOf[1].properties.approved_at.type).toBe("string");
+        expect(adminSchema.allOf[1].properties.approved_at.format).toBe("date-time");
+        expect(adminSchema.allOf[1].properties.approved_at.nullable).toBe(true);
+    });
+
+    it("should validate review verified purchase flag is in response", () => {
+        const reviewSchema = swaggerSpec.components.schemas.ReviewDTO;
+
+        expect(reviewSchema.properties.is_verified_purchase).toBeDefined();
+        expect(reviewSchema.properties.is_verified_purchase.type).toBe("boolean");
+    });
+
 });

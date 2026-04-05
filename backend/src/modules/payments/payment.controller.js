@@ -55,6 +55,51 @@ const handleVNPayWebhook = asyncHandler(async (req, res) => {
 });
 
 /**
+ * GET /api/v1/payments/vnpay-return
+ * VNPay return URL after user completes payment
+ * 
+ * ✅ No authentication required
+ * ✅ DISPLAY UI ONLY - never update database here
+ * ✅ Source of truth is IPN webhook (server-to-server)
+ * ⚠️ Return URL can be spoofed or opened multiple times
+ * 
+ * Query params:
+ * - vnp_ResponseCode: 00=success, other=failed
+ * - vnp_OrderInfo: Order reference
+ * - vnp_TxnRef: Transaction reference (for lookup)
+ * 
+ * Response:
+ * - Redirect to /checkout/success?order=XXX (user can check status via API)
+ * - Redirect to /checkout/failed?code=XXX (user can retry)
+ */
+const handleVNPayReturn = asyncHandler(async (req, res) => {
+    const { vnp_ResponseCode, vnp_OrderInfo, vnp_TxnRef } = req.query;
+
+    // ✅ CORRECT: Display based on response code
+    // ⚠️ NEVER trust this return URL for DB updates
+    // ⚠️ Only IPN webhook is source of truth
+
+    if (vnp_ResponseCode === '00') {
+        // ✅ Payment likely succeeded (but wait for IPN to confirm)
+        // User can check real status via GET /api/v1/payments/:id
+        return res.redirect(
+            `/checkout/success?order=${vnp_OrderInfo || ''}&txn_ref=${vnp_TxnRef || ''}`
+        );
+    } else {
+        // ✅ Payment failed or cancelled
+        // User can retry checkout
+        return res.redirect(
+            `/checkout/failed?code=${vnp_ResponseCode || 'UNKNOWN'}&order=${vnp_OrderInfo || ''}`
+        );
+    }
+
+    // ❌ NEVER DO THIS:
+    // await Payment.updateOne(...);  // WRONG!
+    // await Order.updateOne(...);    // WRONG!
+    // Only IPN (webhook) should update database
+});
+
+/**
  * POST /api/v1/payments/webhook/stripe
  * Stripe webhook event
  * 
@@ -586,6 +631,7 @@ const adminDeletePayment = asyncHandler(async (req, res) => {
 module.exports = {
     // Public endpoints (webhooks)
     handleVNPayWebhook,
+    handleVNPayReturn,  // ← ADD THIS
     handleStripeWebhook,
     handlePayPalWebhook,
 

@@ -8,6 +8,21 @@ const AppError = require('../../utils/appError.util');
 const Order = require('../orders/order.model');
 const Variant = require('../products/variant.model');
 
+// ✅ Logger utility (structured JSON logging)
+const logger = {
+    info: (data) => console.log(JSON.stringify({
+        level: 'info',
+        timestamp: new Date().toISOString(),
+        ...data
+    })),
+
+    error: (data) => console.error(JSON.stringify({
+        level: 'error',
+        timestamp: new Date().toISOString(),
+        ...data
+    }))
+};
+
 /**
  * ============================================
  * PAYMENT SERVICE
@@ -444,6 +459,14 @@ class PaymentService {
         if (result.modifiedCount === 0) {
             // Payment was already updated, return current state
             const currentPayment = await Payment.findById(payment._id);
+
+            logger.info({
+                event: 'payment_success_idempotent',
+                payment_id: payment._id.toString(),
+                order_id: payment.order_id.toString(),
+                message: 'Payment already processed (idempotent retry)'
+            });
+
             return {
                 status: currentPayment.status,
                 transactionRef: PaymentMapper.getTransactionRef(
@@ -465,6 +488,65 @@ class PaymentService {
                 `[Payment] Order not found after payment success: ${payment.order_id}`
             );
         }
+
+        // ✅ CRITICAL: FINALIZE STOCK (reserved → sold)
+        // This is the point where stock is permanently locked
+        if (order && order.items && order.items.length > 0) {
+            for (const item of order.items) {
+                // ✅ quantity_ordered = number of packs
+                // ✅ pack_size = items per pack
+                // ✅ total physical items = quantity_ordered * pack_size
+                const qtyToFinalize = item.quantity_ordered * item.pack_size;
+
+                const stockResult = await Variant.updateOne(
+                    {
+                        _id: item.variant_id,
+                        'stock.reserved': { $gte: qtyToFinalize }  // ← Must have reserved
+                    },
+                    {
+                        $inc: {
+                            'stock.reserved': -qtyToFinalize,     // Remove from reserved
+                            'stock.sold': +qtyToFinalize          // Move to sold (PERMANENT)
+                        }
+                    }
+                );
+
+                if (stockResult.modifiedCount === 0) {
+                    // ⚠️ Critical issue: reserved stock missing
+                    // This should not happen if checkout was atomic
+                    logger.error({
+                        event: 'stock_finalize_failed',
+                        order_id: payment.order_id.toString(),
+                        variant_id: item.variant_id.toString(),
+                        item_name: item.product_name,
+                        qty_expected: qtyToFinalize
+                    });
+
+                    throw new AppError(
+                        `Stock finalization failed for ${item.product_name}`,
+                        500,
+                        'STOCK_FINALIZE_FAILED'
+                    );
+                }
+
+                logger.info({
+                    event: 'stock_finalized',
+                    order_id: payment.order_id.toString(),
+                    variant_id: item.variant_id.toString(),
+                    qty_finalized: qtyToFinalize,
+                    product_name: item.product_name
+                });
+            }
+        }
+
+        logger.info({
+            event: 'payment_success',
+            payment_id: payment._id.toString(),
+            order_id: payment.order_id.toString(),
+            user_id: payment.user_id.toString(),
+            amount: payment.amount,
+            currency: payment.currency
+        });
 
         return {
             status: 'paid',
@@ -533,6 +615,14 @@ class PaymentService {
             if (result.modifiedCount === 0) {
                 const currentPayment = await Payment.findById(payment._id);
                 await session.commitTransaction();
+
+                logger.info({
+                    event: 'payment_failure_idempotent',
+                    payment_id: payment._id.toString(),
+                    order_id: payment.order_id.toString(),
+                    message: 'Payment failure already processed (idempotent retry)'
+                });
+
                 return {
                     status: currentPayment.status,
                     message: 'Payment failure already processed (idempotent)',
@@ -576,6 +666,14 @@ class PaymentService {
                         'STOCK_RESTORATION_FAILED'
                     );
                 }
+
+                logger.info({
+                    event: 'stock_released',
+                    order_id: payment.order_id.toString(),
+                    variant_id: item.variant_id.toString(),
+                    qty_released: qtyItems,
+                    product_name: item.product_name
+                });
             }
 
             // ✅ Update order status → FAILED
@@ -586,6 +684,15 @@ class PaymentService {
             );
 
             await session.commitTransaction();
+
+            logger.info({
+                event: 'payment_failed',
+                payment_id: payment._id.toString(),
+                order_id: payment.order_id.toString(),
+                user_id: payment.user_id.toString(),
+                failure_reason: failureData.failure_reason || 'PAYMENT_REJECTED',
+                failure_code: failureData.vnp_ResponseCode || failureData.stripe_status || 'UNKNOWN'
+            });
 
             return {
                 status: 'failed',

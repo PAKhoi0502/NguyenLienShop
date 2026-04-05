@@ -2249,6 +2249,30 @@ describe("swaggerSpec", () => {
         expect(route.responses["500"].$ref).toBe("#/components/responses/InternalError");
     });
 
+    it("should define vnpay return URL endpoint correctly", () => {
+        const route = getPath("/api/v1/payments/vnpay-return", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Payments");
+        expect(route.security).toEqual([]);  // No auth required
+        expect(route.description).toContain("display only");
+        expect(route.description).toContain("redirect");
+        expect(route.description).toContain("IPN webhook");  // Should mention IPN is source of truth
+
+        // Check query parameters
+        expect(route.parameters).toBeDefined();
+        expect(route.parameters.length).toBeGreaterThan(0);
+
+        const vnpCodeParam = route.parameters.find(p => p.name === "vnp_ResponseCode");
+        expect(vnpCodeParam).toBeDefined();
+        expect(vnpCodeParam.required).toBe(true);
+        expect(vnpCodeParam.in).toBe("query");
+
+        // Check response is 302 redirect
+        expect(route.responses["302"]).toBeDefined();
+        expect(route.responses["302"].description).toContain("Redirect");
+    });
+
     it("should define vnpay webhook endpoint correctly", () => {
         const route = getPath("/api/v1/payments/webhook/vnpay", "post");
 
@@ -2634,6 +2658,7 @@ describe("swaggerSpec", () => {
 
     it("should validate all payment endpoints have proper error responses", () => {
         const paymentEndpoints = [
+            ["/api/v1/payments/vnpay-return", "get"],  // ← ADD THIS
             ["/api/v1/payments/webhook/vnpay", "post"],
             ["/api/v1/payments/webhook/stripe", "post"],
             ["/api/v1/payments/webhook/paypal", "post"],
@@ -2658,6 +2683,7 @@ describe("swaggerSpec", () => {
 
     it("should validate webhook endpoints have no auth requirement", () => {
         const webhookEndpoints = [
+            ["/api/v1/payments/vnpay-return", "get"],  // ← ADD THIS (return URL, display only)
             ["/api/v1/payments/webhook/vnpay", "post"],
             ["/api/v1/payments/webhook/stripe", "post"],
             ["/api/v1/payments/webhook/paypal", "post"],

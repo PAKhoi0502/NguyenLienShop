@@ -29,6 +29,24 @@ const router = express.Router();
 // ===== PUBLIC ENDPOINTS (No Auth) =====
 
 /**
+ * GET /api/v1/payments/vnpay-return
+ * VNPay return URL after user completes payment
+ * 
+ * ✅ Display-only endpoint (NO database updates)
+ * ✅ Source of truth is IPN webhook
+ * ⚠️ Return URL can be spoofed or opened multiple times
+ * 
+ * Redirects to frontend:
+ * - /checkout/success?order=XXX (if response code = 00)
+ * - /checkout/failed?code=XXX (if response code != 00)
+ * 
+ * Users check real payment status via:
+ * - GET /api/v1/payments/:id (authenticated)
+ * - GET /api/v1/orders/:id/payment (authenticated)
+ */
+router.get('/vnpay-return', PaymentController.handleVNPayReturn);
+
+/**
  * POST /api/v1/payments/webhook/vnpay
  * VNPay IPN webhook notification
  * 

@@ -5403,6 +5403,45 @@ const swaggerSpec = {
 
         // ===== PAYMENT WEBHOOKS =====
 
+        "/api/v1/payments/vnpay-return": {
+            get: {
+                tags: ["Payments"],
+                summary: "VNPay return URL (display only)",
+                security: [],
+                description: "⚠️ CRITICAL: This is a browser redirect endpoint, NOT a data update endpoint. This is a display only UI redirect based on response code. DO NOT trust for database updates. Source of truth is IPN webhook (/webhook/vnpay). Returns redirect to /checkout/success or /checkout/failed.",
+                parameters: [
+                    {
+                        name: "vnp_ResponseCode",
+                        in: "query",
+                        required: true,
+                        schema: { type: "string", example: "00" },
+                        description: "Response code from VNPay (00=success, other=failed)",
+                    },
+                    {
+                        name: "vnp_OrderInfo",
+                        in: "query",
+                        required: false,
+                        schema: { type: "string" },
+                        description: "Order reference/ID",
+                    },
+                    {
+                        name: "vnp_TxnRef",
+                        in: "query",
+                        required: false,
+                        schema: { type: "string" },
+                        description: "Transaction reference",
+                    },
+                ],
+                responses: {
+                    "302": {
+                        description: "Redirect to frontend (success or failed page)",
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "500": { $ref: "#/components/responses/InternalError" },
+                },
+            },
+        },
+
         "/api/v1/payments/webhook/vnpay": {
             post: {
                 tags: ["Payments"],

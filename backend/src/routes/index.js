@@ -14,7 +14,7 @@ const reviewRoutes = require('../modules/reviews/review.routes');
 const bannerRoutes = require('../modules/banners/banner.routes');
 const announcementRoutes = require('../modules/announcements/announcement.routes');
 const shopInfoRoutes = require('../modules/shop_info/shop_info.routes');
-
+const notificationRoutes = require('../modules/notifications/notification.routes');
 
 // ============================================================================
 // ===== MOUNT ALL ROUTES =====
@@ -53,6 +53,10 @@ router.use('/announcements', announcementRoutes);
 // Shop information routes
 router.use('/shop-info', shopInfoRoutes);
 
+// Notification routes
+router.use("/notifications", notificationRoutes);
+
+
 // ✅ Product module routes (contains: products, variants, variant-units)
 // Routes structure:
 // - /products (GET all, POST create, etc.)
@@ -61,6 +65,7 @@ router.use('/shop-info', shopInfoRoutes);
 // - /variant-units/:unitId (GET, PATCH, DELETE unit)
 // - /variants/:variantId/units (GET units, POST create unit)
 router.use("/", productModuleRoutes);
+
 
 // ============================================================================
 // ===== 404 HANDLER =====

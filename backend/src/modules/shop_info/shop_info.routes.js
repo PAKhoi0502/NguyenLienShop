@@ -2,7 +2,9 @@ const express = require('express');
 const ShopInfoController = require('./shop_info.controller');
 const { createShopInfoSchema, updateShopInfoSchema } = require('./shop_info.validator');
 const validate = require('../../middlewares/validate.middleware');
-const { authenticate, authorize } = require('../../middlewares/auth.middleware');
+const { authenticate } = require('../../middlewares/auth.middleware');
+const { authorize } = require('../../middlewares/authorize.middleware');
+
 
 const router = express.Router();
 

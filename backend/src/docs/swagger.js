@@ -81,6 +81,10 @@ const swaggerSpec = {
             name: "Shop Info",
             description: "Quản lý thông tin cửa hàng: contact, giờ hoạt động, social links, trạng thái.",
         },
+        {
+            name: "Notifications",
+            description: "Quản lý thông báo cho người dùng: lấy danh sách, đánh dấu đã đọc, xóa.",
+        },
     ],
     components: {
         securitySchemes: {
@@ -4303,6 +4307,258 @@ const swaggerSpec = {
                         ]
                     }
                 }
+            },
+
+            // Notification
+
+            NotificationData: {
+                type: "object",
+                properties: {
+                    ref_type: {
+                        type: "string",
+                        enum: ["order", "payment", "discount", "product", null],
+                        example: "order"
+                    },
+                    ref_id: {
+                        type: "string",
+                        pattern: "^[a-fA-F0-9]{24}$",
+                        example: "507f1f77bcf86cd799439013",
+                        nullable: true
+                    },
+                    extra: {
+                        type: "object",
+                        nullable: true
+                    }
+                }
+            },
+
+            Notification: {
+                type: "object",
+                properties: {
+                    id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    user_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    type: { type: "string", enum: ["order", "system", "promotion"] },
+                    title: { type: "string", minLength: 1, maxLength: 200 },
+                    message: { type: "string", minLength: 1, maxLength: 1000 },
+
+                    data: {
+                        type: "object",
+                        properties: {
+                            ref_type: { type: "string", enum: ["order", "payment", "discount", "product", null] },
+                            ref_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$", nullable: true },  // ✅ ADDED
+                            extra: { type: "object", nullable: true }  // ✅ ADDED
+                        }
+                    },
+
+                    priority: { type: "string", enum: ["low", "medium", "high"] },
+                    is_read: { type: "boolean" },
+                    read_at: { type: "string", format: "date-time", nullable: true },
+
+                    delivered_at: {
+                        type: "string",
+                        format: "date-time",
+                        nullable: true  // ✅ ADDED
+                    },
+
+                    expire_at: {
+                        type: "string",
+                        format: "date-time",
+                        nullable: true  // ✅ ADDED
+                    },
+
+                    created_at: { type: "string", format: "date-time" }
+                },
+                required: ["id", "user_id", "type", "title", "message", "priority", "is_read", "created_at"]
+            },
+
+            NotificationListItem: {
+                type: "object",
+                properties: {
+                    id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+                    type: { type: "string", enum: ["order", "system", "promotion"] },
+                    title: { type: "string" },
+                    message: { type: "string" },
+                    priority: { type: "string", enum: ["low", "medium", "high"] },
+                    is_read: { type: "boolean" },
+                    created_at: { type: "string", format: "date-time" }
+                },
+                required: ["id", "type", "title", "priority", "is_read", "created_at"]
+            },
+
+            CreateNotificationInput: {
+                type: "object",
+                properties: {
+                    user_id: {
+                        type: "string",
+                        pattern: "^[a-fA-F0-9]{24}$"
+                    },
+                    type: {
+                        type: "string",
+                        enum: ["order", "system", "promotion"]
+                    },
+                    title: {
+                        type: "string",
+                        minLength: 1,
+                        maxLength: 200
+                    },
+                    message: {
+                        type: "string",
+                        minLength: 1,
+                        maxLength: 1000
+                    },
+                    data: {
+                        $ref: "#/components/schemas/NotificationData"
+                    },
+                    priority: {
+                        type: "string",
+                        enum: ["low", "medium", "high"],
+                        default: "low"
+                    },
+                    expire_at: {
+                        type: "string",
+                        format: "date-time"
+                    }
+                },
+                required: ["user_id", "type", "title", "message"]
+            },
+
+            MarkAsReadInput: {
+                type: "object",
+                properties: {
+                    notification_id: {
+                        type: "string",
+                        pattern: "^[a-fA-F0-9]{24}$"
+                    }
+                },
+                required: ["notification_id"]
+            },
+
+            BulkMarkAsReadInput: {
+                type: "object",
+                properties: {
+                    notification_ids: {
+                        type: "array",
+                        items: {
+                            type: "string",
+                            pattern: "^[a-fA-F0-9]{24}$"
+                        },
+                        minItems: 1,
+                        maxItems: 100,
+                        example: ["507f1f77bcf86cd799439011", "507f1f77bcf86cd799439012"]
+                    }
+                },
+                required: ["notification_ids"]
+            },
+
+            DeleteNotificationInput: {
+                type: "object",
+                properties: {
+                    notification_id: {
+                        type: "string",
+                        pattern: "^[a-fA-F0-9]{24}$"
+                    }
+                },
+                required: ["notification_id"]
+            },
+
+            NotificationResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: { $ref: "#/components/schemas/Notification" }
+                },
+                required: ["success", "data"]
+            },
+
+            NotificationsListResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/NotificationListItem" }
+                    },
+                    pagination: {
+                        type: "object",
+                        properties: {
+                            page: { type: "integer", example: 1 },
+                            limit: { type: "integer", example: 10 },
+                            total: { type: "integer", example: 45 },
+                            totalPages: { type: "integer", example: 5 },
+                            has_more: { type: "boolean", example: false }
+                        },
+                        required: ["page", "limit", "total", "totalPages"]
+                    }
+                },
+                required: ["success", "data", "pagination"]
+            },
+
+            UnreadCountResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: {
+                        type: "object",
+                        properties: {
+                            unread_count: {
+                                type: "integer",
+                                minimum: 0,
+                                example: 5
+                            }
+                        },
+                        required: ["unread_count"]
+                    }
+                },
+                required: ["success", "data"]
+            },
+
+            MarkAllAsReadResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: {
+                        type: "object",
+                        properties: {
+                            marked_count: { type: "integer", example: 10 }
+                        },
+                        required: ["marked_count"]
+                    }
+                },
+                required: ["success", "data"]
+            },
+
+            MarkAllAsReadInput: {
+                type: "object",
+                properties: {
+                    // No parameters needed - mark all user's notifications as read
+                },
+                required: []
+            },
+
+            DeleteNotificationInput: {
+                type: "object",
+                properties: {
+                    notification_id: {
+                        type: "string",
+                        pattern: "^[a-fA-F0-9]{24}$"
+                    }
+                },
+                required: ["notification_id"]
+            },
+
+            BulkMarkAsReadResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean", example: true },
+                    data: {
+                        type: "object",
+                        properties: {
+                            marked_count: { type: "integer", example: 5 }
+                        },
+                        required: ["marked_count"]
+                    }
+                },
+                required: ["success", "data"]
             },
         },
     },
@@ -9596,6 +9852,249 @@ const swaggerSpec = {
                 }
             }
         },
+
+        // Notifications
+        "/api/v1/notifications/unread-count": {
+            get: {
+                tags: ["Notifications"],
+                summary: "Get unread notification count",
+                description: "Lấy số lượng thông báo chưa đọc của người dùng",
+                security: [{ bearerAuth: [] }],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/UnreadCountResponse" }
+                            }
+                        }
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "500": { $ref: "#/components/responses/InternalError" }
+                }
+            }
+        },
+
+        "/api/v1/notifications/mark-all-read": {
+            patch: {
+                tags: ["Notifications"],
+                summary: "Mark all notifications as read",
+                description: "Đánh dấu tất cả thông báo của người dùng là đã đọc",
+                security: [{ bearerAuth: [] }],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/MarkAllAsReadResponse" }
+                            }
+                        }
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "500": { $ref: "#/components/responses/InternalError" }
+                }
+            }
+        },
+
+        "/api/v1/notifications/bulk/mark-read": {
+            patch: {
+                tags: ["Notifications"],
+                summary: "Mark multiple notifications as read",
+                description: "Đánh dấu bulk thông báo (danh sách nhiều) là đã đọc",
+                security: [{ bearerAuth: [] }],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/BulkMarkAsReadInput" }
+                        }
+                    }
+                },
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/BulkMarkAsReadResponse" }
+                            }
+                        }
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "500": { $ref: "#/components/responses/InternalError" }
+                }
+            }
+        },
+
+        "/api/v1/notifications": {
+            get: {
+                tags: ["Notifications"],
+                summary: "Get paginated notifications",
+                description: "Lấy danh sách thông báo với pagination, hỗ trợ lọc theo type/priority",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        in: "query",
+                        name: "page",
+                        schema: { type: "integer", minimum: 1, default: 1 }
+                    },
+                    {
+                        in: "query",
+                        name: "limit",
+                        schema: { type: "integer", minimum: 1, maximum: 100, default: 10 }
+                    },
+                    {
+                        in: "query",
+                        name: "type",
+                        schema: { type: "string", enum: ["order", "system", "promotion"] }
+                    },
+                    {
+                        in: "query",
+                        name: "priority",
+                        schema: { type: "string", enum: ["low", "medium", "high"] }
+                    },
+                    {
+                        in: "query",
+                        name: "unread_only",
+                        schema: { type: "boolean", default: false }
+                    }
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/NotificationsListResponse" }
+                            }
+                        }
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "500": { $ref: "#/components/responses/InternalError" }
+                }
+            },
+            delete: {
+                tags: ["Notifications"],
+                summary: "Delete all notifications",
+                description: "xóa tất cả thông báo của người dùng (soft delete)",
+                security: [{ bearerAuth: [] }],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: {
+                                        success: { type: "boolean", example: true },
+                                        data: {
+                                            type: "object",
+                                            properties: {
+                                                deleted_count: { type: "integer", example: 15 }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "500": { $ref: "#/components/responses/InternalError" }
+                }
+            }
+        },
+
+        "/api/v1/notifications/{notificationId}": {
+            get: {
+                tags: ["Notifications"],
+                summary: "Get single notification by ID",
+                description: "Lấy chi tiết một thông báo theo ID",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        in: "path",
+                        name: "notificationId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" }
+                    }
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/NotificationResponse" }
+                            }
+                        }
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" }
+                }
+            },
+            delete: {
+                tags: ["Notifications"],
+                summary: "Delete single notification",
+                description: "xóa một thông báo",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        in: "path",
+                        name: "notificationId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" }
+                    }
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: {
+                                        success: { type: "boolean", example: true },
+                                        message: { type: "string", example: "Notification deleted successfully" }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" }
+                }
+            }
+        },
+
+        "/api/v1/notifications/{notificationId}/read": {
+            patch: {
+                tags: ["Notifications"],
+                summary: "Mark single notification as read",
+                description: "Đánh dấu một thông báo là đã đọc",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        in: "path",
+                        name: "notificationId",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" }
+                    }
+                ],
+                responses: {
+                    "200": {
+                        description: "OK",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/NotificationResponse" }
+                            }
+                        }
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" }
+                }
+            }
+        }
     },
 };
 

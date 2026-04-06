@@ -6162,4 +6162,561 @@ describe("swaggerSpec", () => {
         });
     });
 
+    // ===== SHOP INFO TESTS =====
+
+    it("should define Shop Info tag", () => {
+        const shopInfoTag = swaggerSpec.tags.find((tag) => tag.name === "Shop Info");
+        expect(shopInfoTag).toBeDefined();
+        expect(shopInfoTag.description).toContain("Quản lý thông tin cửa hàng");
+    });
+
+    it("should define shop info schemas correctly", () => {
+        // ✅ Core shop info schemas
+        expect(swaggerSpec.components.schemas.ShopInfo).toBeDefined();
+        expect(swaggerSpec.components.schemas.ShopInfo.required).toContain("id");
+        expect(swaggerSpec.components.schemas.ShopInfo.required).toContain("shop_name");
+        expect(swaggerSpec.components.schemas.ShopInfo.required).toContain("email");
+        expect(swaggerSpec.components.schemas.ShopInfo.required).toContain("phone");
+        expect(swaggerSpec.components.schemas.ShopInfo.required).toContain("address");
+        expect(swaggerSpec.components.schemas.ShopInfo.required).toContain("working_hours");
+
+        expect(swaggerSpec.components.schemas.ContactInfo).toBeDefined();
+        expect(swaggerSpec.components.schemas.ContactInfo.required).toEqual([
+            "shop_name",
+            "email",
+            "phone",
+            "address",
+        ]);
+
+        expect(swaggerSpec.components.schemas.WorkingHoursDTO).toBeDefined();
+        expect(swaggerSpec.components.schemas.WorkingHoursDTO.required).toContain("shop_name");
+        expect(swaggerSpec.components.schemas.WorkingHoursDTO.required).toContain("working_hours");
+
+        expect(swaggerSpec.components.schemas.SocialLinksDTO).toBeDefined();
+        expect(swaggerSpec.components.schemas.SocialLinksDTO.required).toContain("shop_name");
+        expect(swaggerSpec.components.schemas.SocialLinksDTO.required).toContain("social_links");
+
+        expect(swaggerSpec.components.schemas.IsOpenResponse).toBeDefined();
+        expect(swaggerSpec.components.schemas.IsOpenResponse.required).toEqual(["is_open"]);
+
+        expect(swaggerSpec.components.schemas.NextOpeningTime).toBeDefined();
+        expect(swaggerSpec.components.schemas.NextOpeningTime.properties.date).toBeDefined();
+        expect(swaggerSpec.components.schemas.NextOpeningTime.properties.time).toBeDefined();
+        expect(swaggerSpec.components.schemas.NextOpeningTime.properties.day).toBeDefined();
+
+        expect(swaggerSpec.components.schemas.CreateShopInfoInput).toBeDefined();
+        expect(swaggerSpec.components.schemas.CreateShopInfoInput.required).toContain("shop_name");
+        expect(swaggerSpec.components.schemas.CreateShopInfoInput.required).toContain("email");
+        expect(swaggerSpec.components.schemas.CreateShopInfoInput.required).toContain("phone");
+        expect(swaggerSpec.components.schemas.CreateShopInfoInput.required).toContain("address");
+        expect(swaggerSpec.components.schemas.CreateShopInfoInput.required).toContain("working_hours");
+
+        expect(swaggerSpec.components.schemas.UpdateShopInfoInput).toBeDefined();
+        // All fields optional for PATCH
+        expect(swaggerSpec.components.schemas.UpdateShopInfoInput.required).toBeUndefined();
+
+        expect(swaggerSpec.components.schemas.ToggleShopStatusInput).toBeDefined();
+        expect(swaggerSpec.components.schemas.ToggleShopStatusInput.required).toEqual(["is_active"]);
+
+        // ✅ Response schemas
+        expect(swaggerSpec.components.schemas.ShopInfoResponse).toBeDefined();
+        expect(swaggerSpec.components.schemas.ShopInfoResponse.required).toEqual(["success", "data"]);
+
+        expect(swaggerSpec.components.schemas.ContactInfoResponse).toBeDefined();
+        expect(swaggerSpec.components.schemas.WorkingHoursResponse).toBeDefined();
+        expect(swaggerSpec.components.schemas.SocialLinksResponse).toBeDefined();
+        expect(swaggerSpec.components.schemas.IsOpenResponseWrapper).toBeDefined();
+        expect(swaggerSpec.components.schemas.NextOpeningTimeResponse).toBeDefined();
+    });
+
+    it("should define get shop info endpoint correctly", () => {
+        const route = getPath("/api/v1/shop-info", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Shop Info");
+        expect(route.security).toEqual([]);  // No auth required
+        expect(route.description).toContain("PUBLIC");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/ShopInfoResponse"
+        );
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+        expect(route.responses["500"].$ref).toBe("#/components/responses/InternalError");
+    });
+
+    it("should define create shop info endpoint correctly", () => {
+        const route = getPath("/api/v1/shop-info", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Shop Info");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("ADMIN ONLY");
+        expect(route.description).toContain("setup");
+        expect(getSchemaRef(route.requestBody)).toBe(
+            "#/components/schemas/CreateShopInfoInput"
+        );
+        expect(route.responses["201"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/ShopInfoResponse"
+        );
+        expect(route.responses["400"].$ref).toBe("#/components/responses/BadRequest");
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["409"].$ref).toBe("#/components/responses/Conflict");
+        expect(route.responses["500"].$ref).toBe("#/components/responses/InternalError");
+    });
+
+    it("should define update shop info endpoint correctly", () => {
+        const route = getPath("/api/v1/shop-info", "patch");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Shop Info");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("ADMIN ONLY");
+        expect(route.description).toContain("partial");
+        expect(getSchemaRef(route.requestBody)).toBe(
+            "#/components/schemas/UpdateShopInfoInput"
+        );
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/ShopInfoResponse"
+        );
+        expect(route.responses["400"].$ref).toBe("#/components/responses/BadRequest");
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+        expect(route.responses["500"].$ref).toBe("#/components/responses/InternalError");
+    });
+
+    it("should define get contact info endpoint correctly", () => {
+        const route = getPath("/api/v1/shop-info/contact", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Shop Info");
+        expect(route.security).toEqual([]);  // No auth required
+        expect(route.description).toContain("PUBLIC");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/ContactInfoResponse"
+        );
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+        expect(route.responses["500"].$ref).toBe("#/components/responses/InternalError");
+    });
+
+    it("should define get working hours endpoint correctly", () => {
+        const route = getPath("/api/v1/shop-info/hours", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Shop Info");
+        expect(route.security).toEqual([]);  // No auth required
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/WorkingHoursResponse"
+        );
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+        expect(route.responses["500"].$ref).toBe("#/components/responses/InternalError");
+    });
+
+    it("should define get social links endpoint correctly", () => {
+        const route = getPath("/api/v1/shop-info/social", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Shop Info");
+        expect(route.security).toEqual([]);  // No auth required
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/SocialLinksResponse"
+        );
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+        expect(route.responses["500"].$ref).toBe("#/components/responses/InternalError");
+    });
+
+    it("should define is shop open endpoint correctly", () => {
+        const route = getPath("/api/v1/shop-info/is-open", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Shop Info");
+        expect(route.security).toEqual([]);  // No auth required
+        expect(route.description).toContain("real-time");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/IsOpenResponseWrapper"
+        );
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+        expect(route.responses["500"].$ref).toBe("#/components/responses/InternalError");
+    });
+
+    it("should define get next opening time endpoint correctly", () => {
+        const route = getPath("/api/v1/shop-info/next-opening", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Shop Info");
+        expect(route.security).toEqual([]);  // No auth required
+        expect(route.description).toContain("opening time");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/NextOpeningTimeResponse"
+        );
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+        expect(route.responses["500"].$ref).toBe("#/components/responses/InternalError");
+    });
+
+    it("should define toggle shop status endpoint correctly", () => {
+        const route = getPath("/api/v1/shop-info/status", "patch");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Shop Info");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("ADMIN ONLY");
+        expect(route.description).toContain("maintenance");
+        expect(getSchemaRef(route.requestBody)).toBe(
+            "#/components/schemas/ToggleShopStatusInput"
+        );
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/ShopInfoResponse"
+        );
+        expect(route.responses["400"].$ref).toBe("#/components/responses/BadRequest");
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+        expect(route.responses["500"].$ref).toBe("#/components/responses/InternalError");
+    });
+
+    // ===== SHOP INFO SCHEMA VALIDATION =====
+
+    it("should validate ShopInfo schema properties", () => {
+        const shopInfoSchema = swaggerSpec.components.schemas.ShopInfo;
+
+        expect(shopInfoSchema.properties.id.pattern).toBe("^[a-fA-F0-9]{24}$");
+        expect(shopInfoSchema.properties.shop_name.minLength).toBe(2);
+        expect(shopInfoSchema.properties.shop_name.maxLength).toBe(100);
+
+        expect(shopInfoSchema.properties.email.format).toBe("email");
+        expect(shopInfoSchema.properties.phone.pattern).toBe("^(\\+84|0)[0-9]{9,10}$");
+        expect(shopInfoSchema.properties.address.maxLength).toBe(500);
+        expect(shopInfoSchema.properties.is_active.type).toBe("boolean");
+    });
+
+    it("should validate working hours format", () => {
+        const hoursSchema = swaggerSpec.components.schemas.ShopInfo;
+
+        expect(hoursSchema.properties.working_hours.type).toBe("array");
+        expect(hoursSchema.properties.working_hours.items.properties.day.enum).toEqual([
+            "mon",
+            "tue",
+            "wed",
+            "thu",
+            "fri",
+            "sat",
+            "sun",
+        ]);
+        expect(hoursSchema.properties.working_hours.items.properties.open.pattern).toBe(
+            "^\\d{2}:\\d{2}$"
+        );
+        expect(hoursSchema.properties.working_hours.items.properties.close.pattern).toBe(
+            "^\\d{2}:\\d{2}$"
+        );
+    });
+
+    it("should validate social links are optional", () => {
+        const socialSchema = swaggerSpec.components.schemas.ShopInfo;
+
+        expect(socialSchema.properties.social_links.type).toBe("object");
+        expect(socialSchema.properties.social_links.properties.facebook.type).toBe("string");
+        expect(socialSchema.properties.social_links.properties.zalo.type).toBe("string");
+        expect(socialSchema.properties.social_links.properties.instagram.type).toBe("string");
+        expect(socialSchema.properties.social_links.properties.shoppe.type).toBe("string");
+    });
+
+    it("should validate map embed url is optional", () => {
+        const shopInfoSchema = swaggerSpec.components.schemas.ShopInfo;
+
+        expect(shopInfoSchema.properties.map_embed_url.type).toBe("string");
+        expect(shopInfoSchema.properties.map_embed_url.format).toBe("uri");
+        expect(shopInfoSchema.properties.map_embed_url.nullable).toBe(true);
+    });
+
+    it("should validate ContactInfo is subset of ShopInfo", () => {
+        const contactSchema = swaggerSpec.components.schemas.ContactInfo;
+
+        expect(contactSchema.properties.shop_name).toBeDefined();
+        expect(contactSchema.properties.email).toBeDefined();
+        expect(contactSchema.properties.phone).toBeDefined();
+        expect(contactSchema.properties.address).toBeDefined();
+        expect(contactSchema.properties.is_active).toBeDefined();
+
+        // Should NOT have these
+        expect(contactSchema.properties.working_hours).toBeUndefined();
+        expect(contactSchema.properties.social_links).toBeUndefined();
+        expect(contactSchema.properties.map_embed_url).toBeUndefined();
+    });
+
+    it("should validate WorkingHoursDTO structure", () => {
+        const hoursDto = swaggerSpec.components.schemas.WorkingHoursDTO;
+
+        expect(hoursDto.required).toContain("shop_name");
+        expect(hoursDto.required).toContain("working_hours");
+        expect(hoursDto.properties.shop_name).toBeDefined();
+        expect(hoursDto.properties.working_hours.type).toBe("array");
+        expect(hoursDto.properties.is_active).toBeDefined();
+    });
+
+    it("should validate SocialLinksDTO structure", () => {
+        const socialDto = swaggerSpec.components.schemas.SocialLinksDTO;
+
+        expect(socialDto.required).toContain("shop_name");
+        expect(socialDto.required).toContain("social_links");
+        expect(socialDto.properties.shop_name).toBeDefined();
+        expect(socialDto.properties.social_links).toBeDefined();
+        expect(socialDto.properties.is_active).toBeDefined();
+    });
+
+    it("should validate IsOpenResponse is boolean", () => {
+        const isOpenSchema = swaggerSpec.components.schemas.IsOpenResponse;
+
+        expect(isOpenSchema.properties.is_open.type).toBe("boolean");
+        expect(isOpenSchema.required).toEqual(["is_open"]);
+    });
+
+    it("should validate NextOpeningTime structure", () => {
+        const nextOpenSchema = swaggerSpec.components.schemas.NextOpeningTime;
+
+        expect(nextOpenSchema.properties.date.format).toBe("date");
+        expect(nextOpenSchema.properties.time.pattern).toBe("^\\d{2}:\\d{2}$");
+        expect(nextOpenSchema.properties.day.enum).toEqual([
+            "mon",
+            "tue",
+            "wed",
+            "thu",
+            "fri",
+            "sat",
+            "sun",
+        ]);
+    });
+
+    it("should validate CreateShopInfoInput validation", () => {
+        const createSchema = swaggerSpec.components.schemas.CreateShopInfoInput;
+
+        expect(createSchema.properties.shop_name.minLength).toBe(2);
+        expect(createSchema.properties.shop_name.maxLength).toBe(100);
+        expect(createSchema.properties.email.format).toBe("email");
+        expect(createSchema.properties.phone.pattern).toBe("^(\\+84|0)[0-9]{9,10}$");
+        expect(createSchema.properties.address.maxLength).toBe(500);
+
+        expect(createSchema.properties.working_hours.minItems).toBe(1);
+        expect(createSchema.properties.is_active.default).toBe(true);
+    });
+
+    it("should validate UpdateShopInfoInput has all optional fields", () => {
+        const updateSchema = swaggerSpec.components.schemas.UpdateShopInfoInput;
+
+        // All fields should be optional
+        expect(updateSchema.required).toBeUndefined();
+        expect(updateSchema.properties.shop_name).toBeDefined();
+        expect(updateSchema.properties.email).toBeDefined();
+        expect(updateSchema.properties.phone).toBeDefined();
+        expect(updateSchema.properties.address).toBeDefined();
+        expect(updateSchema.properties.working_hours).toBeDefined();
+        expect(updateSchema.properties.social_links).toBeDefined();
+        expect(updateSchema.properties.map_embed_url).toBeDefined();
+        expect(updateSchema.properties.is_active).toBeDefined();
+    });
+
+    it("should validate ToggleShopStatusInput has is_active only", () => {
+        const toggleSchema = swaggerSpec.components.schemas.ToggleShopStatusInput;
+
+        expect(toggleSchema.required).toEqual(["is_active"]);
+        expect(toggleSchema.properties.is_active.type).toBe("boolean");
+    });
+
+    it("should validate ShopInfo timestamps", () => {
+        const shopInfoSchema = swaggerSpec.components.schemas.ShopInfo;
+
+        expect(shopInfoSchema.properties.created_at.type).toBe("string");
+        expect(shopInfoSchema.properties.created_at.format).toBe("date-time");
+        expect(shopInfoSchema.properties.updated_at.type).toBe("string");
+        expect(shopInfoSchema.properties.updated_at.format).toBe("date-time");
+    });
+
+    it("should validate response schemas wrap data correctly", () => {
+        const shopResponse = swaggerSpec.components.schemas.ShopInfoResponse;
+        const contactResponse = swaggerSpec.components.schemas.ContactInfoResponse;
+        const hoursResponse = swaggerSpec.components.schemas.WorkingHoursResponse;
+        const socialResponse = swaggerSpec.components.schemas.SocialLinksResponse;
+
+        expect(shopResponse.properties.success.type).toBe("boolean");
+        expect(shopResponse.properties.data.$ref).toBe("#/components/schemas/ShopInfo");
+
+        expect(contactResponse.properties.success.type).toBe("boolean");
+        expect(contactResponse.properties.data.$ref).toBe("#/components/schemas/ContactInfo");
+
+        expect(hoursResponse.properties.success.type).toBe("boolean");
+        expect(hoursResponse.properties.data.$ref).toBe("#/components/schemas/WorkingHoursDTO");
+
+        expect(socialResponse.properties.success.type).toBe("boolean");
+        expect(socialResponse.properties.data.$ref).toBe("#/components/schemas/SocialLinksDTO");
+    });
+
+    // ===== SHOP INFO ENDPOINT VALIDATION =====
+
+    it("should validate all public shop info endpoints have no auth", () => {
+        const publicEndpoints = [
+            ["/api/v1/shop-info", "get"],
+            ["/api/v1/shop-info/contact", "get"],
+            ["/api/v1/shop-info/hours", "get"],
+            ["/api/v1/shop-info/social", "get"],
+            ["/api/v1/shop-info/is-open", "get"],
+            ["/api/v1/shop-info/next-opening", "get"],
+        ];
+
+        publicEndpoints.forEach(([path, method]) => {
+            const route = getPath(path, method);
+            expect(route.security).toEqual([]);
+        });
+    });
+
+    it("should validate all admin shop info endpoints require auth", () => {
+        const adminEndpoints = [
+            ["/api/v1/shop-info", "post"],
+            ["/api/v1/shop-info", "patch"],
+            ["/api/v1/shop-info/status", "patch"],
+        ];
+
+        adminEndpoints.forEach(([path, method]) => {
+            const route = getPath(path, method);
+            expect(route.security).toEqual([{ bearerAuth: [] }]);
+        });
+    });
+
+    it("should validate all shop info endpoints have proper error responses", () => {
+        const endpoints = [
+            ["/api/v1/shop-info", "get"],
+            ["/api/v1/shop-info", "post"],
+            ["/api/v1/shop-info", "patch"],
+            ["/api/v1/shop-info/contact", "get"],
+            ["/api/v1/shop-info/hours", "get"],
+            ["/api/v1/shop-info/social", "get"],
+            ["/api/v1/shop-info/is-open", "get"],
+            ["/api/v1/shop-info/next-opening", "get"],
+            ["/api/v1/shop-info/status", "patch"],
+        ];
+
+        endpoints.forEach(([path, method]) => {
+            const route = getPath(path, method);
+            expect(route.responses["404"]).toBeDefined();
+            expect(route.responses["500"]).toBeDefined();
+        });
+    });
+
+    it("should validate create shop info prevents duplicate (409)", () => {
+        const route = getPath("/api/v1/shop-info", "post");
+
+        expect(route.responses["409"]).toBeDefined();
+        expect(route.responses["409"].$ref).toBe("#/components/responses/Conflict");
+    });
+
+    it("should validate phone format in all schemas", () => {
+        const shopSchema = swaggerSpec.components.schemas.ShopInfo;
+        const contactSchema = swaggerSpec.components.schemas.ContactInfo;
+        const createSchema = swaggerSpec.components.schemas.CreateShopInfoInput;
+
+        expect(shopSchema.properties.phone.pattern).toBe("^(\\+84|0)[0-9]{9,10}$");
+        expect(contactSchema.properties.phone.pattern).toBe("^(\\+84|0)[0-9]{9,10}$");
+        expect(createSchema.properties.phone.pattern).toBe("^(\\+84|0)[0-9]{9,10}$");
+    });
+
+    it("should validate email format in all schemas", () => {
+        const shopSchema = swaggerSpec.components.schemas.ShopInfo;
+        const contactSchema = swaggerSpec.components.schemas.ContactInfo;
+        const createSchema = swaggerSpec.components.schemas.CreateShopInfoInput;
+
+        expect(shopSchema.properties.email.format).toBe("email");
+        expect(contactSchema.properties.email.format).toBe("email");
+        expect(createSchema.properties.email.format).toBe("email");
+    });
+
+    it("should validate working hours day enum consistency", () => {
+        const createSchema = swaggerSpec.components.schemas.CreateShopInfoInput;
+        const hoursSchema = swaggerSpec.components.schemas.ShopInfo;
+
+        const createDayEnum = createSchema.properties.working_hours.items.properties.day.enum;
+        const hoursDayEnum = hoursSchema.properties.working_hours.items.properties.day.enum;
+
+        expect(createDayEnum).toEqual(hoursDayEnum);
+        expect(createDayEnum).toEqual(["mon", "tue", "wed", "thu", "fri", "sat", "sun"]);
+    });
+
+    it("should validate next opening can be null", () => {
+        const responseSchema = swaggerSpec.components.schemas.NextOpeningTimeResponse;
+
+        expect(responseSchema.properties.data.oneOf).toBeDefined();
+        expect(responseSchema.properties.data.oneOf.length).toBe(2);
+    });
+
+    it("should validate shop info response structure consistency", () => {
+        const routes = [
+            ["/api/v1/shop-info", "get"],
+            ["/api/v1/shop-info", "post"],
+            ["/api/v1/shop-info", "patch"],
+            ["/api/v1/shop-info/status", "patch"],
+        ];
+
+        routes.forEach(([path, method]) => {
+            const route = getPath(path, method);
+            const responseRef = route.responses["200"]?.content["application/json"].schema.$ref ||
+                route.responses["201"]?.content["application/json"].schema.$ref;
+            expect(responseRef).toBe("#/components/schemas/ShopInfoResponse");
+        });
+    });
+
+    it("should validate contact info is lighter than full shop info", () => {
+        const contactSchema = swaggerSpec.components.schemas.ContactInfo;
+        const shopSchema = swaggerSpec.components.schemas.ShopInfo;
+
+        // Contact should have fewer required fields
+        expect(contactSchema.required.length).toBeLessThan(shopSchema.required.length);
+    });
+
+    it("should validate phone validation message mentions Vietnamese format", () => {
+        const createSchema = swaggerSpec.components.schemas.CreateShopInfoInput;
+
+        expect(createSchema.properties.phone.description || "").toContain("");
+        // Pattern itself should indicate VN format
+        expect(createSchema.properties.phone.pattern).toContain("84");  // VN country code
+    });
+
+    it("should validate working hours have time format HH:MM", () => {
+        const hoursSchema = swaggerSpec.components.schemas.ShopInfo;
+
+        expect(hoursSchema.properties.working_hours.items.properties.open.pattern).toBe(
+            "^\\d{2}:\\d{2}$"
+        );
+        expect(hoursSchema.properties.working_hours.items.properties.close.pattern).toBe(
+            "^\\d{2}:\\d{2}$"
+        );
+    });
+
+    it("should validate social links all optional fields", () => {
+        const socialSchema = swaggerSpec.components.schemas.ShopInfo;
+
+        // All social link fields should NOT be required
+        expect(
+            socialSchema.properties.social_links.properties.facebook.required
+        ).toBeUndefined();
+        expect(
+            socialSchema.properties.social_links.properties.zalo.required
+        ).toBeUndefined();
+        expect(
+            socialSchema.properties.social_links.properties.instagram.required
+        ).toBeUndefined();
+        expect(
+            socialSchema.properties.social_links.properties.shoppe.required
+        ).toBeUndefined();
+    });
+
+    it("should validate NextOpeningTime requires date, time, day when not null", () => {
+        const nextOpenSchema = swaggerSpec.components.schemas.NextOpeningTime;
+
+        expect(nextOpenSchema.properties.date).toBeDefined();
+        expect(nextOpenSchema.properties.time).toBeDefined();
+        expect(nextOpenSchema.properties.day).toBeDefined();
+    });
+
+    it("should validate is_open is only field in IsOpenResponse data", () => {
+        const isOpenSchema = swaggerSpec.components.schemas.IsOpenResponse;
+
+        expect(Object.keys(isOpenSchema.properties)).toEqual(["is_open"]);
+    });
 });

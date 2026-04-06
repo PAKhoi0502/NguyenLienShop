@@ -76,7 +76,11 @@ const swaggerSpec = {
         {
             name: "Announcements",
             description: "Quản lý thông báo: tạo, cập nhật, xóa, lấy danh sách.",
-        }
+        },
+        {
+            name: "Shop Info",
+            description: "Quản lý thông tin cửa hàng: contact, giờ hoạt động, social links, trạng thái.",
+        },
     ],
     components: {
         securitySchemes: {
@@ -3971,6 +3975,335 @@ const swaggerSpec = {
                 }
             },
 
+            // ===== SHOP INFO SCHEMAS =====
+            ShopInfo: {
+                type: 'object',
+                required: ['id', 'shop_name', 'email', 'phone', 'address', 'working_hours', 'status', 'created_at', 'updated_at'],
+                properties: {
+                    id: {
+                        type: 'string',
+                        pattern: '^[a-fA-F0-9]{24}$',
+                        description: 'Shop info ID (MongoDB ObjectId)',
+                        example: '507f1f77bcf86cd799439011'
+                    },
+                    shop_name: {
+                        type: 'string',
+                        minLength: 2,
+                        maxLength: 100,
+                        example: 'Nguyễn Liên Shop'
+                    },
+                    email: {
+                        type: 'string',
+                        format: 'email',
+                        example: 'contact@nguyen-lien.com'
+                    },
+                    phone: {
+                        type: 'string',
+                        pattern: '^(\\+84|0)[0-9]{9,10}$',
+                        example: '0912345678'
+                    },
+                    address: {
+                        type: 'string',
+                        maxLength: 500,
+                        example: '123 Đường Lê Lợi, Quận 1, TP. Hồ Chí Minh'
+                    },
+                    working_hours: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            required: ['day', 'open', 'close'],
+                            properties: {
+                                day: {
+                                    type: 'string',
+                                    enum: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
+                                    example: 'mon'
+                                },
+                                open: {
+                                    type: 'string',
+                                    pattern: '^\\d{2}:\\d{2}$',
+                                    example: '08:00'
+                                },
+                                close: {
+                                    type: 'string',
+                                    pattern: '^\\d{2}:\\d{2}$',
+                                    example: '18:00'
+                                }
+                            }
+                        },
+                        example: [
+                            { day: 'mon', open: '08:00', close: '18:00' },
+                            { day: 'tue', open: '08:00', close: '18:00' }
+                        ]
+                    },
+                    social_links: {
+                        type: 'object',
+                        properties: {
+                            facebook: { type: 'string', example: 'https://facebook.com/nguyen-lien' },
+                            zalo: { type: 'string', example: '0912345678' },
+                            instagram: { type: 'string', example: 'https://instagram.com/nguyen-lien' },
+                            shoppe: { type: 'string', example: 'https://shopee.vn/nguyen-lien' }
+                        }
+                    },
+                    map_embed_url: {
+                        type: 'string',
+                        format: 'uri',
+                        nullable: true,
+                        example: 'https://www.google.com/maps/embed?pb=...'
+                    },
+                    is_active: {
+                        type: 'boolean',
+                        default: true,
+                        description: 'Shop status (active/inactive)'
+                    },
+                    created_at: {
+                        type: 'string',
+                        format: 'date-time'
+                    },
+                    updated_at: {
+                        type: 'string',
+                        format: 'date-time'
+                    }
+                }
+            },
+
+            ContactInfo: {
+                type: 'object',
+                required: ['shop_name', 'email', 'phone', 'address'],
+                properties: {
+                    shop_name: { type: 'string', example: 'Nguyễn Liên Shop' },
+                    email: { type: 'string', format: 'email', example: 'contact@nguyen-lien.com' },
+                    phone: {
+                        type: 'string',
+                        pattern: '^(\\+84|0)[0-9]{9,10}$',
+                        example: '0912345678'
+                    },
+                    address: { type: 'string', example: '123 Đường Lê Lợi, Quận 1, TP. Hồ Chí Minh' },
+                    is_active: { type: 'boolean', example: true }
+                }
+            },
+
+            WorkingHoursDTO: {
+                type: 'object',
+                required: ['shop_name', 'working_hours'],
+                properties: {
+                    shop_name: { type: 'string', example: 'Nguyễn Liên Shop' },
+                    working_hours: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                day: { type: 'string', enum: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] },
+                                open: { type: 'string', pattern: '^\\d{2}:\\d{2}$' },
+                                close: { type: 'string', pattern: '^\\d{2}:\\d{2}$' }
+                            }
+                        }
+                    },
+                    is_active: { type: 'boolean', example: true }
+                }
+            },
+
+            SocialLinksDTO: {
+                type: 'object',
+                required: ['shop_name', 'social_links'],
+                properties: {
+                    shop_name: { type: 'string', example: 'Nguyễn Liên Shop' },
+                    social_links: {
+                        type: 'object',
+                        properties: {
+                            facebook: { type: 'string', nullable: true },
+                            zalo: { type: 'string', nullable: true },
+                            instagram: { type: 'string', nullable: true },
+                            shoppe: { type: 'string', nullable: true }
+                        }
+                    },
+                    is_active: { type: 'boolean', example: true }
+                }
+            },
+
+            IsOpenResponse: {
+                type: 'object',
+                required: ['is_open'],
+                properties: {
+                    is_open: {
+                        type: 'boolean',
+                        description: 'Current shop open status',
+                        example: true
+                    }
+                }
+            },
+
+            NextOpeningTime: {
+                type: 'object',
+                properties: {
+                    date: { type: 'string', format: 'date', example: '2026-04-06' },
+                    time: { type: 'string', pattern: '^\\d{2}:\\d{2}$', example: '08:00' },
+                    day: { type: 'string', enum: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'], example: 'mon' }
+                }
+            },
+
+            CreateShopInfoInput: {
+                type: 'object',
+                required: ['shop_name', 'email', 'phone', 'address', 'working_hours'],
+                properties: {
+                    shop_name: {
+                        type: 'string',
+                        minLength: 2,
+                        maxLength: 100,
+                        example: 'Nguyễn Liên Shop'
+                    },
+                    email: {
+                        type: 'string',
+                        format: 'email',
+                        example: 'contact@nguyen-lien.com'
+                    },
+                    phone: {
+                        type: 'string',
+                        pattern: '^(\\+84|0)[0-9]{9,10}$',
+                        example: '0912345678'
+                    },
+                    address: {
+                        type: 'string',
+                        maxLength: 500,
+                        example: '123 Đường Lê Lợi, Quận 1, TP. Hồ Chí Minh'
+                    },
+                    working_hours: {
+                        type: 'array',
+                        minItems: 1,
+                        items: {
+                            type: 'object',
+                            required: ['day', 'open', 'close'],
+                            properties: {
+                                day: { type: 'string', enum: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] },
+                                open: { type: 'string', pattern: '^\\d{2}:\\d{2}$' },
+                                close: { type: 'string', pattern: '^\\d{2}:\\d{2}$' }
+                            }
+                        }
+                    },
+                    social_links: {
+                        type: 'object',
+                        properties: {
+                            facebook: { type: 'string' },
+                            zalo: { type: 'string' },
+                            instagram: { type: 'string' },
+                            shoppe: { type: 'string' }
+                        }
+                    },
+                    map_embed_url: {
+                        type: 'string',
+                        format: 'uri',
+                        nullable: true
+                    },
+                    is_active: {
+                        type: 'boolean',
+                        default: true
+                    }
+                }
+            },
+
+            UpdateShopInfoInput: {
+                type: 'object',
+                description: 'All fields optional (PATCH)',
+                properties: {
+                    shop_name: { type: 'string', minLength: 2, maxLength: 100 },
+                    email: { type: 'string', format: 'email' },
+                    phone: { type: 'string', pattern: '^(\\+84|0)[0-9]{9,10}$' },
+                    address: { type: 'string', maxLength: 500 },
+                    working_hours: {
+                        type: 'array',
+                        minItems: 1,
+                        items: {
+                            type: 'object',
+                            properties: {
+                                day: { type: 'string', enum: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] },
+                                open: { type: 'string', pattern: '^\\d{2}:\\d{2}$' },
+                                close: { type: 'string', pattern: '^\\d{2}:\\d{2}$' }
+                            }
+                        }
+                    },
+                    social_links: {
+                        type: 'object',
+                        properties: {
+                            facebook: { type: 'string' },
+                            zalo: { type: 'string' },
+                            instagram: { type: 'string' },
+                            shoppe: { type: 'string' }
+                        }
+                    },
+                    map_embed_url: { type: 'string', format: 'uri', nullable: true },
+                    is_active: { type: 'boolean' }
+                }
+            },
+
+            ToggleShopStatusInput: {
+                type: 'object',
+                required: ['is_active'],
+                properties: {
+                    is_active: {
+                        type: 'boolean',
+                        description: 'Activate (true) or deactivate (false) shop',
+                        example: false
+                    }
+                }
+            },
+
+            ShopInfoResponse: {
+                type: 'object',
+                required: ['success', 'data'],
+                properties: {
+                    success: { type: 'boolean', example: true },
+                    data: { $ref: '#/components/schemas/ShopInfo' }
+                }
+            },
+
+            ContactInfoResponse: {
+                type: 'object',
+                required: ['success', 'data'],
+                properties: {
+                    success: { type: 'boolean', example: true },
+                    data: { $ref: '#/components/schemas/ContactInfo' }
+                }
+            },
+
+            WorkingHoursResponse: {
+                type: 'object',
+                required: ['success', 'data'],
+                properties: {
+                    success: { type: 'boolean', example: true },
+                    data: { $ref: '#/components/schemas/WorkingHoursDTO' }
+                }
+            },
+
+            SocialLinksResponse: {
+                type: 'object',
+                required: ['success', 'data'],
+                properties: {
+                    success: { type: 'boolean', example: true },
+                    data: { $ref: '#/components/schemas/SocialLinksDTO' }
+                }
+            },
+
+            IsOpenResponseWrapper: {
+                type: 'object',
+                required: ['success', 'data'],
+                properties: {
+                    success: { type: 'boolean', example: true },
+                    data: { $ref: '#/components/schemas/IsOpenResponse' }
+                }
+            },
+
+            NextOpeningTimeResponse: {
+                type: 'object',
+                required: ['success', 'data'],
+                properties: {
+                    success: { type: 'boolean', example: true },
+                    data: {
+                        oneOf: [
+                            { $ref: '#/components/schemas/NextOpeningTime' },
+                            { type: 'null' }
+                        ]
+                    }
+                }
+            },
         },
     },
     paths: {
@@ -9045,8 +9378,224 @@ const swaggerSpec = {
                     }
                 }
             }
-        }
+        },
 
+        // ===== SHOP INFO PATHS =====
+        '/api/v1/shop-info': {
+            get: {
+                tags: ['Shop Info'],
+                summary: 'Get shop information (PUBLIC)',
+                description: 'PUBLIC endpoint. Retrieve complete shop information including contact, hours, and social links. No authentication required.',
+                security: [],
+                responses: {
+                    '200': {
+                        description: 'Shop information retrieved successfully',
+                        content: {
+                            'application/json': {
+                                schema: { $ref: '#/components/schemas/ShopInfoResponse' }
+                            }
+                        }
+                    },
+                    '404': { $ref: '#/components/responses/NotFound' },
+                    '500': { $ref: '#/components/responses/InternalError' }
+                }
+            },
+            post: {
+                tags: ['Shop Info'],
+                summary: 'Create shop information (ADMIN ONLY)',
+                description: 'ADMIN ONLY endpoint. Initialize shop information. Called once during setup. Prevents duplicate creation.',
+                security: [{ bearerAuth: [] }],
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: { $ref: '#/components/schemas/CreateShopInfoInput' }
+                        }
+                    }
+                },
+                responses: {
+                    '201': {
+                        description: 'Shop information created successfully',
+                        content: {
+                            'application/json': {
+                                schema: { $ref: '#/components/schemas/ShopInfoResponse' }
+                            }
+                        }
+                    },
+                    '400': { $ref: '#/components/responses/BadRequest' },
+                    '401': { $ref: '#/components/responses/Unauthorized' },
+                    '403': { $ref: '#/components/responses/Forbidden' },
+                    '404': { $ref: '#/components/responses/NotFound' },
+                    '409': { $ref: '#/components/responses/Conflict' },
+                    '500': { $ref: '#/components/responses/InternalError' }
+                }
+            },
+            patch: {
+                tags: ['Shop Info'],
+                summary: 'Update shop information (ADMIN ONLY)',
+                description: 'ADMIN ONLY endpoint. partial updates allowed. Only provided fields are updated.', security: [{ bearerAuth: [] }],
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: { $ref: '#/components/schemas/UpdateShopInfoInput' }
+                        }
+                    }
+                },
+                responses: {
+                    '200': {
+                        description: 'Shop information updated successfully',
+                        content: {
+                            'application/json': {
+                                schema: { $ref: '#/components/schemas/ShopInfoResponse' }
+                            }
+                        }
+                    },
+                    '400': { $ref: '#/components/responses/BadRequest' },
+                    '401': { $ref: '#/components/responses/Unauthorized' },
+                    '403': { $ref: '#/components/responses/Forbidden' },
+                    '404': { $ref: '#/components/responses/NotFound' },
+                    '500': { $ref: '#/components/responses/InternalError' }
+                }
+            }
+        },
+
+        '/api/v1/shop-info/contact': {
+            get: {
+                tags: ['Shop Info'],
+                summary: 'Get contact information (PUBLIC)',
+                description: 'PUBLIC endpoint. Retrieve contact information only (lighter DTO for contact forms).',
+                security: [],
+                responses: {
+                    '200': {
+                        description: 'Contact information retrieved',
+                        content: {
+                            'application/json': {
+                                schema: { $ref: '#/components/schemas/ContactInfoResponse' }
+                            }
+                        }
+                    },
+                    '404': { $ref: '#/components/responses/NotFound' },
+                    '500': { $ref: '#/components/responses/InternalError' }
+                }
+            }
+        },
+
+        '/api/v1/shop-info/hours': {
+            get: {
+                tags: ['Shop Info'],
+                summary: 'Get working hours (PUBLIC)',
+                description: 'PUBLIC endpoint. Retrieve shop working hours for storefront widget.',
+                security: [],
+                responses: {
+                    '200': {
+                        description: 'Working hours retrieved',
+                        content: {
+                            'application/json': {
+                                schema: { $ref: '#/components/schemas/WorkingHoursResponse' }
+                            }
+                        }
+                    },
+                    '404': { $ref: '#/components/responses/NotFound' },
+                    '500': { $ref: '#/components/responses/InternalError' }
+                }
+            }
+        },
+
+        '/api/v1/shop-info/social': {
+            get: {
+                tags: ['Shop Info'],
+                summary: 'Get social media links (PUBLIC)',
+                description: 'PUBLIC endpoint. Retrieve social media links for footer embeds.',
+                security: [],
+                responses: {
+                    '200': {
+                        description: 'Social links retrieved',
+                        content: {
+                            'application/json': {
+                                schema: { $ref: '#/components/schemas/SocialLinksResponse' }
+                            }
+                        }
+                    },
+                    '404': { $ref: '#/components/responses/NotFound' },
+                    '500': { $ref: '#/components/responses/InternalError' }
+                }
+            }
+        },
+
+        '/api/v1/shop-info/is-open': {
+            get: {
+                tags: ['Shop Info'],
+                summary: 'Check if shop is currently open (PUBLIC)',
+                description: 'PUBLIC endpoint. real-time status check based on working hours. Returns { is_open: boolean }.',
+                security: [],
+                responses: {
+                    '200': {
+                        description: 'Shop open status',
+                        content: {
+                            'application/json': {
+                                schema: { $ref: '#/components/schemas/IsOpenResponseWrapper' }
+                            }
+                        }
+                    },
+                    '404': { $ref: '#/components/responses/NotFound' },
+                    '500': { $ref: '#/components/responses/InternalError' }
+                }
+            }
+        },
+
+        '/api/v1/shop-info/next-opening': {
+            get: {
+                tags: ['Shop Info'],
+                summary: 'Get next opening time (PUBLIC)',
+                description: 'PUBLIC endpoint. Returns next opening time. Shows "We open at..." message with next opening date and time. Returns null if shop doesn\'t have gaps.',
+                security: [],
+                responses: {
+                    '200': {
+                        description: 'Next opening time retrieved',
+                        content: {
+                            'application/json': {
+                                schema: { $ref: '#/components/schemas/NextOpeningTimeResponse' }
+                            }
+                        }
+                    },
+                    '404': { $ref: '#/components/responses/NotFound' },
+                    '500': { $ref: '#/components/responses/InternalError' }
+                }
+            }
+        },
+
+        '/api/v1/shop-info/status': {
+            patch: {
+                tags: ['Shop Info'],
+                summary: 'Toggle shop status (ADMIN ONLY)',
+                description: 'ADMIN ONLY endpoint. Activate/deactivate shop temporarily (useful for maintenance mode).',
+                security: [{ bearerAuth: [] }],
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: { $ref: '#/components/schemas/ToggleShopStatusInput' }
+                        }
+                    }
+                },
+                responses: {
+                    '200': {
+                        description: 'Shop status updated',
+                        content: {
+                            'application/json': {
+                                schema: { $ref: '#/components/schemas/ShopInfoResponse' }
+                            }
+                        }
+                    },
+                    '400': { $ref: '#/components/responses/BadRequest' },
+                    '401': { $ref: '#/components/responses/Unauthorized' },
+                    '403': { $ref: '#/components/responses/Forbidden' },
+                    '404': { $ref: '#/components/responses/NotFound' },
+                    '500': { $ref: '#/components/responses/InternalError' }
+                }
+            }
+        },
     },
 };
 

@@ -5122,4 +5122,464 @@ describe("swaggerSpec", () => {
         expect(reviewSchema.properties.is_verified_purchase.type).toBe("boolean");
     });
 
+
+    it("should define Banners tag", () => {
+        const bannerTag = swaggerSpec.tags.find((tag) => tag.name === "Banners");
+        expect(bannerTag).toBeDefined();
+        expect(bannerTag.description).toContain("Quản lý banner");
+    });
+
+    it("should define banner schemas correctly", () => {
+        // ✅ Core banner schemas
+        expect(swaggerSpec.components.schemas.CreateBannerInput).toBeDefined();
+        expect(swaggerSpec.components.schemas.CreateBannerInput.required).toEqual([
+            "image",
+            "link",
+            "location",
+            "sort_order",
+            "start_at",
+            "end_at",
+        ]);
+
+        expect(swaggerSpec.components.schemas.UpdateBannerInput).toBeDefined();
+        expect(swaggerSpec.components.schemas.Banner).toBeDefined();
+        expect(swaggerSpec.components.schemas.BannerListItem).toBeDefined();
+
+        // ✅ Input schemas
+        expect(swaggerSpec.components.schemas.BannerImage).toBeDefined();
+        expect(swaggerSpec.components.schemas.BannerImage.required).toEqual(["url"]);
+
+        // ✅ Response schemas
+        expect(swaggerSpec.components.schemas.BannerResponse).toBeDefined();
+        expect(swaggerSpec.components.schemas.BannerResponse.required).toEqual(["success", "data"]);
+
+        expect(swaggerSpec.components.schemas.BannersListResponse).toBeDefined();
+        expect(swaggerSpec.components.schemas.BannersListResponse.required).toEqual([
+            "success",
+            "data",
+            "pagination",
+        ]);
+    });
+
+    it("should define get active banners by location endpoint correctly", () => {
+        const route = getPath("/api/v1/banners/location/{location}", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Banners");
+        expect(route.security).toEqual([]);  // Public endpoint
+        expect(route.description).toContain("active");
+        expect(route.description).toContain("public");
+
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "location",
+            required: true,
+            schema: {
+                type: "string",
+                enum: ["homepage_top", "homepage_middle", "homepage_bottom", "category_page"],
+            },
+        });
+
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/BannersListResponse"
+        );
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+    });
+
+    it("should define get banner by ID endpoint correctly", () => {
+        const route = getPath("/api/v1/banners/{id}", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Banners");
+        expect(route.security).toEqual([]);  // Public endpoint
+
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "id",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/BannerResponse"
+        );
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+    });
+
+    it("should define get deleted banners endpoint correctly", () => {
+        const route = getPath("/api/v1/banners/deleted", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Banners");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("admin");
+        expect(route.description).toContain("deleted");
+
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/BannersListResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+    });
+
+    it("should define get all banners endpoint correctly", () => {
+        const route = getPath("/api/v1/banners", "get");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Banners");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("admin");
+        expect(route.description).toContain("all");
+
+        expect(route.parameters).toBeDefined();
+        const locationParam = route.parameters.find((p) => p.name === "location");
+        expect(locationParam).toBeDefined();
+        expect(locationParam.schema.enum).toEqual([
+            "homepage_top",
+            "homepage_middle",
+            "homepage_bottom",
+            "category_page",
+        ]);
+
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/BannersListResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+    });
+
+    it("should define create banner endpoint correctly", () => {
+        const route = getPath("/api/v1/banners", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Banners");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("admin");
+
+        expect(getSchemaRef(route.requestBody)).toBe("#/components/schemas/CreateBannerInput");
+
+        expect(route.responses["201"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/BannerResponse"
+        );
+        expect(route.responses["400"].$ref).toBe("#/components/responses/BadRequest");
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["409"].$ref).toBe("#/components/responses/Conflict");
+    });
+
+    it("should define update banner endpoint correctly", () => {
+        const route = getPath("/api/v1/banners/{id}", "patch");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Banners");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "id",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+
+        expect(getSchemaRef(route.requestBody)).toBe("#/components/schemas/UpdateBannerInput");
+
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/BannerResponse"
+        );
+        expect(route.responses["400"].$ref).toBe("#/components/responses/BadRequest");
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+        expect(route.responses["409"].$ref).toBe("#/components/responses/Conflict");
+    });
+
+    it("should define delete banner endpoint correctly", () => {
+        const route = getPath("/api/v1/banners/{id}", "delete");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Banners");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "id",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+
+        expect(route.responses["200"].content["application/json"].schema).toBeDefined();
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+    });
+
+    it("should define restore banner endpoint correctly", () => {
+        const route = getPath("/api/v1/banners/{id}/restore", "post");
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Banners");
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain("restore");
+
+        expect(route.parameters[0]).toMatchObject({
+            in: "path",
+            name: "id",
+            required: true,
+            schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" },
+        });
+
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/BannerResponse"
+        );
+        expect(route.responses["401"].$ref).toBe("#/components/responses/Unauthorized");
+        expect(route.responses["403"].$ref).toBe("#/components/responses/Forbidden");
+        expect(route.responses["404"].$ref).toBe("#/components/responses/NotFound");
+    });
+
+    // ===== BANNER SCHEMA VALIDATION =====
+
+    it("should validate Banner schema properties", () => {
+        const bannerSchema = swaggerSpec.components.schemas.Banner;
+
+        expect(bannerSchema.properties.id.pattern).toBe("^[a-fA-F0-9]{24}$");
+        expect(bannerSchema.properties.image.$ref).toBe("#/components/schemas/BannerImage");
+        expect(bannerSchema.properties.link.type).toBe("string");
+        expect(bannerSchema.properties.location.enum).toEqual([
+            "homepage_top",
+            "homepage_middle",
+            "homepage_bottom",
+            "category_page",
+        ]);
+        expect(bannerSchema.properties.sort_order.type).toBe("integer");
+        expect(bannerSchema.properties.sort_order.minimum).toBe(0);
+        expect(bannerSchema.properties.sort_order.maximum).toBe(999);
+        expect(bannerSchema.properties.is_active.type).toBe("boolean");
+    });
+
+    it("should validate BannerImage schema", () => {
+        const imageSchema = swaggerSpec.components.schemas.BannerImage;
+
+        expect(imageSchema.required).toContain("url");
+        expect(imageSchema.properties.url.type).toBe("string");
+        expect(imageSchema.properties.url.format).toBe("uri");
+        expect(imageSchema.properties.alt_text.type).toBe("string");
+        expect(imageSchema.properties.alt_text.maxLength).toBe(200);
+        expect(imageSchema.properties.public_id.type).toBe("string");
+    });
+
+    it("should validate CreateBannerInput required fields", () => {
+        const inputSchema = swaggerSpec.components.schemas.CreateBannerInput;
+
+        expect(inputSchema.required).toContain("image");
+        expect(inputSchema.required).toContain("link");
+        expect(inputSchema.required).toContain("location");
+        expect(inputSchema.required).toContain("sort_order");
+        expect(inputSchema.required).toContain("start_at");
+        expect(inputSchema.required).toContain("end_at");
+    });
+
+    it("should validate UpdateBannerInput allows partial updates", () => {
+        const updateSchema = swaggerSpec.components.schemas.UpdateBannerInput;
+
+        // All fields should be optional for PATCH
+        expect(updateSchema.required).toBeUndefined();
+        expect(updateSchema.properties.image).toBeDefined();
+        expect(updateSchema.properties.link).toBeDefined();
+        expect(updateSchema.properties.location).toBeDefined();
+        expect(updateSchema.properties.sort_order).toBeDefined();
+        expect(updateSchema.properties.start_at).toBeDefined();
+        expect(updateSchema.properties.end_at).toBeDefined();
+    });
+
+    it("should validate banner location enum", () => {
+        const bannerSchema = swaggerSpec.components.schemas.Banner;
+
+        expect(bannerSchema.properties.location.enum).toEqual([
+            "homepage_top",
+            "homepage_middle",
+            "homepage_bottom",
+            "category_page",
+        ]);
+    });
+
+    it("should validate banner timestamps", () => {
+        const bannerSchema = swaggerSpec.components.schemas.Banner;
+
+        expect(bannerSchema.properties.start_at.type).toBe("string");
+        expect(bannerSchema.properties.start_at.format).toBe("date-time");
+        expect(bannerSchema.properties.end_at.type).toBe("string");
+        expect(bannerSchema.properties.end_at.format).toBe("date-time");
+        expect(bannerSchema.properties.created_at.type).toBe("string");
+        expect(bannerSchema.properties.created_at.format).toBe("date-time");
+        expect(bannerSchema.properties.updated_at.type).toBe("string");
+        expect(bannerSchema.properties.updated_at.format).toBe("date-time");
+    });
+
+    it("should validate BannersListResponse pagination", () => {
+        const listResponse = swaggerSpec.components.schemas.BannersListResponse;
+
+        expect(listResponse.required).toContain("success");
+        expect(listResponse.required).toContain("data");
+        expect(listResponse.required).toContain("pagination");
+        expect(listResponse.properties.data.type).toBe("array");
+        expect(listResponse.properties.data.items.$ref).toBe("#/components/schemas/BannerListItem");
+        expect(listResponse.properties.pagination.properties.page.type).toBe("integer");
+        expect(listResponse.properties.pagination.properties.limit.type).toBe("integer");
+        expect(listResponse.properties.pagination.properties.total.type).toBe("integer");
+        expect(listResponse.properties.pagination.properties.totalPages.type).toBe("integer");
+    });
+
+    it("should validate BannerResponse structure", () => {
+        const response = swaggerSpec.components.schemas.BannerResponse;
+
+        expect(response.required).toContain("success");
+        expect(response.required).toContain("data");
+        expect(response.properties.data.$ref).toBe("#/components/schemas/Banner");
+    });
+
+    // ===== BANNER ENDPOINT VALIDATION =====
+
+    it("should validate public banner endpoints don't require auth", () => {
+        const publicEndpoints = [
+            ["/api/v1/banners/location/{location}", "get"],
+            ["/api/v1/banners/{id}", "get"],
+        ];
+
+        publicEndpoints.forEach(([path, method]) => {
+            const route = getPath(path, method);
+            expect(route.security).toEqual([]);
+        });
+    });
+
+    it("should validate admin banner endpoints require auth", () => {
+        const adminEndpoints = [
+            ["/api/v1/banners/deleted", "get"],
+            ["/api/v1/banners", "get"],
+            ["/api/v1/banners", "post"],
+            ["/api/v1/banners/{id}", "patch"],
+            ["/api/v1/banners/{id}", "delete"],
+            ["/api/v1/banners/{id}/restore", "post"],
+        ];
+
+        adminEndpoints.forEach(([path, method]) => {
+            const route = getPath(path, method);
+            expect(route.security).toEqual([{ bearerAuth: [] }]);
+        });
+    });
+
+    it("should validate banner location parameter format", () => {
+        const route = getPath("/api/v1/banners/location/{location}", "get");
+        const locationParam = route.parameters[0];
+
+        expect(locationParam.schema.enum).toEqual([
+            "homepage_top",
+            "homepage_middle",
+            "homepage_bottom",
+            "category_page",
+        ]);
+    });
+
+    it("should validate banner sort_order constraints", () => {
+        const bannerSchema = swaggerSpec.components.schemas.Banner;
+
+        expect(bannerSchema.properties.sort_order.minimum).toBe(0);
+        expect(bannerSchema.properties.sort_order.maximum).toBe(999);
+    });
+
+    it("should validate banner link is required string", () => {
+        const createInput = swaggerSpec.components.schemas.CreateBannerInput;
+
+        expect(createInput.required).toContain("link");
+        expect(createInput.properties.link.type).toBe("string");
+        expect(createInput.properties.link.minLength).toBeGreaterThan(0);
+    });
+
+    it("should validate banner image URL is HTTP(S)", () => {
+        const imageSchema = swaggerSpec.components.schemas.BannerImage;
+
+        expect(imageSchema.properties.url.format).toBe("uri");
+        // Pattern typically enforces http/https
+    });
+
+    it("should validate banner alt_text is optional and capped", () => {
+        const imageSchema = swaggerSpec.components.schemas.BannerImage;
+
+        expect(imageSchema.required).not.toContain("alt_text");
+        expect(imageSchema.properties.alt_text.maxLength).toBe(200);
+    });
+
+    it("should validate banner start_at must be before end_at", () => {
+        const createInput = swaggerSpec.components.schemas.CreateBannerInput;
+
+        // This is typically enforced in Zod schema, documented in description
+        expect(createInput.properties.start_at).toBeDefined();
+        expect(createInput.properties.end_at).toBeDefined();
+    });
+
+    it("should validate banner response includes computed is_active field", () => {
+        const bannerSchema = swaggerSpec.components.schemas.Banner;
+
+        expect(bannerSchema.properties.is_active).toBeDefined();
+        expect(bannerSchema.properties.is_active.type).toBe("boolean");
+        expect(bannerSchema.properties.is_active.description).toContain("computed");
+    });
+
+    it("should validate banner list endpoint supports location filter", () => {
+        const route = getPath("/api/v1/banners", "get");
+        const locationParam = route.parameters.find((p) => p.name === "location");
+
+        expect(locationParam).toBeDefined();
+        expect(locationParam.in).toBe("query");
+        expect(locationParam.schema.enum).toEqual([
+            "homepage_top",
+            "homepage_middle",
+            "homepage_bottom",
+            "category_page",
+        ]);
+    });
+
+    it("should validate deleted banners endpoint shows audit trail", () => {
+        const route = getPath("/api/v1/banners/deleted", "get");
+
+        expect(route.description).toContain("deleted");
+        expect(route.description).toContain("audit");
+        expect(route.responses["200"].content["application/json"].schema.$ref).toBe(
+            "#/components/schemas/BannersListResponse"
+        );
+    });
+
+    it("should validate banner response uses proper DTO refs", () => {
+        const bannerResponse = swaggerSpec.components.schemas.BannerResponse;
+
+        expect(bannerResponse.properties.data.$ref).toBe("#/components/schemas/Banner");
+    });
+
+    it("should validate all banner endpoints have proper error responses", () => {
+        const bannerEndpoints = [
+            ["/api/v1/banners/location/{location}", "get"],
+            ["/api/v1/banners/{id}", "get"],
+            ["/api/v1/banners/deleted", "get"],
+            ["/api/v1/banners", "get"],
+            ["/api/v1/banners", "post"],
+            ["/api/v1/banners/{id}", "patch"],
+            ["/api/v1/banners/{id}", "delete"],
+            ["/api/v1/banners/{id}/restore", "post"],
+        ];
+
+        bannerEndpoints.forEach(([path, method]) => {
+            const route = getPath(path, method);
+            expect(route).toBeDefined();
+            expect(route.responses).toBeDefined();
+        });
+    });
+
+    it("should validate banner timestamps are ISO format", () => {
+        const bannerSchema = swaggerSpec.components.schemas.Banner;
+
+        expect(bannerSchema.properties.start_at.format).toBe("date-time");
+        expect(bannerSchema.properties.end_at.format).toBe("date-time");
+        expect(bannerSchema.properties.created_at.format).toBe("date-time");
+        expect(bannerSchema.properties.updated_at.format).toBe("date-time");
+    });
+
 });

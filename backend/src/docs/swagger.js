@@ -68,6 +68,10 @@ const swaggerSpec = {
         {
             name: "Reviews",
             description: "Quản lý đánh giá sản phẩm: tạo, cập nhật, xóa review, đánh giá hữu ích, và moderation admin.",
+        },
+        {
+            name: "Banners",
+            description: "Quản lý banner: tạo, cập nhật, xóa, lấy danh sách.",
         }
     ],
     components: {
@@ -3455,6 +3459,233 @@ const swaggerSpec = {
                 },
                 required: ["success", "data", "pagination"],
             },
+
+            // Banners
+            BannerImage: {
+                type: 'object',
+                required: ['url'],
+                properties: {
+                    url: {
+                        type: 'string',
+                        format: 'uri',
+                        description: 'Banner image URL (HTTP/HTTPS)'
+                    },
+                    alt_text: {
+                        type: 'string',
+                        maxLength: 200,
+                        description: 'Alt text for SEO'
+                    },
+                    public_id: {
+                        type: 'string',
+                        description: 'Cloudinary/S3 public ID for deletion'
+                    }
+                }
+            },
+
+            CreateBannerInput: {
+                type: 'object',
+                required: ['image', 'link', 'location', 'sort_order', 'start_at', 'end_at'],
+                properties: {
+                    image: {
+                        $ref: '#/components/schemas/BannerImage'
+                    },
+                    link: {
+                        type: 'string',
+                        minLength: 1,
+                        description: 'Destination URL, route, or product ID'
+                    },
+                    location: {
+                        type: 'string',
+                        enum: ['homepage_top', 'homepage_middle', 'homepage_bottom', 'category_page'],
+                        description: 'Banner location on website'
+                    },
+                    sort_order: {
+                        type: 'integer',
+                        minimum: 0,
+                        maximum: 999,
+                        description: 'Display order within location'
+                    },
+                    start_at: {
+                        type: 'string',
+                        format: 'date-time',
+                        description: 'ISO 8601 start datetime'
+                    },
+                    end_at: {
+                        type: 'string',
+                        format: 'date-time',
+                        description: 'ISO 8601 end datetime (must be after start_at)'
+                    }
+                }
+            },
+
+            UpdateBannerInput: {
+                type: 'object',
+                properties: {
+                    image: {
+                        $ref: '#/components/schemas/BannerImage'
+                    },
+                    link: {
+                        type: 'string',
+                        minLength: 1
+                    },
+                    location: {
+                        type: 'string',
+                        enum: ['homepage_top', 'homepage_middle', 'homepage_bottom', 'category_page']
+                    },
+                    sort_order: {
+                        type: 'integer',
+                        minimum: 0,
+                        maximum: 999
+                    },
+                    start_at: {
+                        type: 'string',
+                        format: 'date-time'
+                    },
+                    end_at: {
+                        type: 'string',
+                        format: 'date-time'
+                    }
+                }
+            },
+
+            Banner: {
+                type: 'object',
+                required: ['id', 'image', 'link', 'location', 'sort_order', 'start_at', 'end_at', 'is_active', 'created_at', 'updated_at'],
+                properties: {
+                    id: {
+                        type: 'string',
+                        pattern: '^[a-fA-F0-9]{24}$',
+                        description: 'Banner ID (MongoDB ObjectId)'
+                    },
+                    image: {
+                        $ref: '#/components/schemas/BannerImage'
+                    },
+                    link: {
+                        type: 'string',
+                        description: 'Destination URL/route/ID'
+                    },
+                    location: {
+                        type: 'string',
+                        enum: ['homepage_top', 'homepage_middle', 'homepage_bottom', 'category_page'],
+                        description: 'Banner location'
+                    },
+                    sort_order: {
+                        type: 'integer',
+                        minimum: 0,
+                        maximum: 999,
+                        description: 'Display order'
+                    },
+                    start_at: {
+                        type: 'string',
+                        format: 'date-time',
+                        description: 'Campaign start time'
+                    },
+                    end_at: {
+                        type: 'string',
+                        format: 'date-time',
+                        description: 'Campaign end time'
+                    },
+                    is_active: {
+                        type: 'boolean',
+                        description: 'computed: true if now is between start_at and end_at'
+                    },
+                    created_at: {
+                        type: 'string',
+                        format: 'date-time'
+                    },
+                    updated_at: {
+                        type: 'string',
+                        format: 'date-time'
+                    },
+                    created_by: {
+                        type: 'string',
+                        pattern: '^[a-fA-F0-9]{24}$',
+                        nullable: true,
+                        description: 'User ID who created the banner'
+                    }
+                }
+            },
+
+            BannerListItem: {
+                type: 'object',
+                required: ['id', 'image', 'location', 'sort_order', 'is_active', 'created_at'],
+                properties: {
+                    id: {
+                        type: 'string',
+                        pattern: '^[a-fA-F0-9]{24}$'
+                    },
+                    image: {
+                        $ref: '#/components/schemas/BannerImage'
+                    },
+                    location: {
+                        type: 'string',
+                        enum: ['homepage_top', 'homepage_middle', 'homepage_bottom', 'category_page']
+                    },
+                    sort_order: {
+                        type: 'integer'
+                    },
+                    is_active: {
+                        type: 'boolean'
+                    },
+                    created_at: {
+                        type: 'string',
+                        format: 'date-time'
+                    }
+                }
+            },
+
+            BannerResponse: {
+                type: 'object',
+                required: ['success', 'data'],
+                properties: {
+                    success: {
+                        type: 'boolean',
+                        example: true
+                    },
+                    data: {
+                        $ref: '#/components/schemas/Banner'
+                    }
+                }
+            },
+
+            BannersListResponse: {
+                type: 'object',
+                required: ['success', 'data', 'pagination'],
+                properties: {
+                    success: {
+                        type: 'boolean',
+                        example: true
+                    },
+                    data: {
+                        type: 'array',
+                        items: {
+                            $ref: '#/components/schemas/BannerListItem'
+                        }
+                    },
+                    pagination: {
+                        type: 'object',
+                        required: ['page', 'limit', 'total', 'totalPages'],
+                        properties: {
+                            page: {
+                                type: 'integer',
+                                example: 1
+                            },
+                            limit: {
+                                type: 'integer',
+                                example: 10
+                            },
+                            total: {
+                                type: 'integer',
+                                example: 100
+                            },
+                            totalPages: {
+                                type: 'integer',
+                                example: 10
+                            }
+                        }
+                    }
+                }
+            }
         },
     },
     paths: {
@@ -7787,6 +8018,264 @@ const swaggerSpec = {
                 },
             },
         },
+
+        // Banners
+        "/api/v1/banners/location/{location}": {
+            get: {
+                tags: ["Banners"],
+                summary: "Get active banners by location (Public)",
+                description: "public: retrieve currently active banners for a specific location. No authentication required. Returns only banners where start_at ≤ now < end_at.",
+                operationId: "getActiveBannersByLocation",
+                security: [],
+                parameters: [
+                    {
+                        name: "location",
+                        in: "path",
+                        required: true,
+                        schema: {
+                            type: "string",
+                            enum: ["homepage_top", "homepage_middle", "homepage_bottom", "category_page"]
+                        },
+                        description: "Banner location on website"
+                    }
+                ],
+                responses: {
+                    "200": {
+                        description: "List of active banners for location",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/BannersListResponse" }
+                            }
+                        }
+                    },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" }
+                }
+            }
+        },
+
+        "/api/v1/banners/{id}": {
+            get: {
+                tags: ["Banners"],
+                summary: "Get banner by ID (Public)",
+                description: "Retrieve a single banner by ID. Returns banner regardless of active status.",
+                operationId: "getBannerById",
+                security: [],
+                parameters: [
+                    {
+                        name: "id",
+                        in: "path",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" }
+                    }
+                ],
+                responses: {
+                    "200": {
+                        description: "Banner details",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/BannerResponse" }
+                            }
+                        }
+                    },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" }
+                }
+            },
+            patch: {
+                tags: ["Banners"],
+                summary: "Update banner (Admin)",
+                description: "Update banner details. All fields optional (partial update).",
+                operationId: "updateBanner",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        name: "id",
+                        in: "path",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" }
+                    }
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/UpdateBannerInput" }
+                        }
+                    }
+                },
+                responses: {
+                    "200": {
+                        description: "Banner updated",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/BannerResponse" }
+                            }
+                        }
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "409": { $ref: "#/components/responses/Conflict" },
+                    "500": { $ref: "#/components/responses/InternalError" }
+                }
+            },
+            delete: {
+                tags: ["Banners"],
+                summary: "Delete banner (Admin)",
+                description: "Soft delete a banner (marks as deleted but retains record).",
+                operationId: "deleteBanner",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        name: "id",
+                        in: "path",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" }
+                    }
+                ],
+                responses: {
+                    "200": {
+                        description: "Banner deleted",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: {
+                                        success: { type: "boolean", example: true },
+                                        message: { type: "string", example: "Banner deleted successfully" }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" }
+                }
+            }
+        },
+
+        "/api/v1/banners/deleted": {
+            get: {
+                tags: ["Banners"],
+                summary: "Get deleted banners (Admin)",
+                description: "admin only: Retrieve deleted banners for recovery. Shows audit trail with deleted_at timestamp.",
+                operationId: "getDeletedBanners",
+                security: [{ bearerAuth: [] }],
+                responses: {
+                    "200": {
+                        description: "List of deleted banners",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/BannersListResponse" }
+                            }
+                        }
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "500": { $ref: "#/components/responses/InternalError" }
+                }
+            }
+        },
+
+        "/api/v1/banners": {
+            get: {
+                tags: ["Banners"],
+                summary: "Get all banners (Admin)",
+                description: "admin only: Retrieve all non-deleted banners (active + scheduled). Optional location filter.",
+                operationId: "getAllBanners",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        name: "location",
+                        in: "query",
+                        schema: {
+                            type: "string",
+                            enum: ["homepage_top", "homepage_middle", "homepage_bottom", "category_page"]
+                        },
+                        description: "Optional filter by location"
+                    }
+                ],
+                responses: {
+                    "200": {
+                        description: "List of all banners",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/BannersListResponse" }
+                            }
+                        }
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "500": { $ref: "#/components/responses/InternalError" }
+                }
+            },
+            post: {
+                tags: ["Banners"],
+                summary: "Create banner (Admin)",
+                description: "admin only: Create a new banner. Validation done by middleware. User ID from JWT for audit trail.",
+                operationId: "createBanner",
+                security: [{ bearerAuth: [] }],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/CreateBannerInput" }
+                        }
+                    }
+                },
+                responses: {
+                    "201": {
+                        description: "Banner created",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/BannerResponse" }
+                            }
+                        }
+                    },
+                    "400": { $ref: "#/components/responses/BadRequest" },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "409": { $ref: "#/components/responses/Conflict" },
+                    "500": { $ref: "#/components/responses/InternalError" }
+                }
+            }
+        },
+
+        "/api/v1/banners/{id}/restore": {
+            post: {
+                tags: ["Banners"],
+                summary: "Restore deleted banner (Admin)",
+                description: "admin only: restore a previously deleted banner. User ID from JWT for audit trail.",
+                operationId: "restoreBanner",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        name: "id",
+                        in: "path",
+                        required: true,
+                        schema: { type: "string", pattern: "^[a-fA-F0-9]{24}$" }
+                    }
+                ],
+                responses: {
+                    "200": {
+                        description: "Banner restored",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/BannerResponse" }
+                            }
+                        }
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                    "500": { $ref: "#/components/responses/InternalError" }
+                }
+            }
+        }
     },
 };
 

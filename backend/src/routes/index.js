@@ -12,7 +12,7 @@ const cartRoutes = require("../modules/carts/cart.routes");
 const shipmentRoutes = require('../modules/shipments/shipment.routes');
 const reviewRoutes = require('../modules/reviews/review.routes');
 const bannerRoutes = require('../modules/banners/banner.routes');
-
+const announcementRoutes = require('../modules/announcements/announcement.routes');
 
 
 // ============================================================================
@@ -45,6 +45,9 @@ router.use('/reviews', reviewRoutes);
 
 // Banner routes
 router.use('/banners', bannerRoutes);
+
+// Announcement routes
+router.use('/announcements', announcementRoutes);
 
 // ✅ Product module routes (contains: products, variants, variant-units)
 // Routes structure:

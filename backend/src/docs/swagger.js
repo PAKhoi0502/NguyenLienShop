@@ -72,6 +72,10 @@ const swaggerSpec = {
         {
             name: "Banners",
             description: "Quản lý banner: tạo, cập nhật, xóa, lấy danh sách.",
+        },
+        {
+            name: "Announcements",
+            description: "Quản lý thông báo: tạo, cập nhật, xóa, lấy danh sách.",
         }
     ],
     components: {
@@ -3685,7 +3689,288 @@ const swaggerSpec = {
                         }
                     }
                 }
-            }
+            },
+
+            // Announcements
+            AnnouncementImage: {
+                type: 'object',
+                required: ['url'],
+                properties: {
+                    url: {
+                        type: 'string',
+                        format: 'uri',
+                        description: 'HTTP(S) image URL'
+                    },
+                    alt_text: {
+                        type: 'string',
+                        maxLength: 200,
+                        description: 'SEO alt text'
+                    },
+                    public_id: {
+                        type: 'string',
+                        description: 'Cloudinary/S3 public ID for deletion'
+                    }
+                }
+            },
+
+            Announcement: {
+                type: 'object',
+                required: [
+                    'id',
+                    'title',
+                    'content',
+                    'priority',
+                    'target',
+                    'type',
+                    'start_at',
+                    'end_at',
+                    'is_dismissible',
+                    'is_active',
+                    'created_at',
+                    'updated_at'
+                ],
+                properties: {
+                    id: {
+                        type: 'string',
+                        pattern: '^[a-fA-F0-9]{24}$'
+                    },
+                    title: {
+                        type: 'string',
+                        minLength: 5,
+                        maxLength: 200,
+                        example: 'Khuyến mãi Black Friday'
+                    },
+                    content: {
+                        type: 'string',
+                        minLength: 10,
+                        maxLength: 5000,
+                        example: 'Giảm giá lên đến 50% cho tất cả sản phẩm...'
+                    },
+                    priority: {
+                        type: 'integer',
+                        minimum: 0,
+                        maximum: 10,
+                        default: 0,
+                        description: 'Độ ưu tiên hiển thị (cao nhất = 10)'
+                    },
+                    target: {
+                        type: 'string',
+                        enum: ['all', 'user', 'admin', 'guest'],
+                        default: 'all',
+                        description: 'Ai có thể thấy thông báo'
+                    },
+                    type: {
+                        type: 'string',
+                        enum: ['info', 'warning', 'promotion', 'system', 'urgent'],
+                        default: 'info',
+                        description: 'Loại thông báo (dùng cho styling UI)'
+                    },
+                    is_dismissible: {
+                        type: 'boolean',
+                        default: true,
+                        description: 'Người dùng có thể đóng được không'
+                    },
+                    start_at: {
+                        type: 'string',
+                        format: 'date-time',
+                        description: 'Thời gian bắt đầu hiển thị'
+                    },
+                    end_at: {
+                        type: 'string',
+                        format: 'date-time',
+                        description: 'Thời gian kết thúc hiển thị (phải > start_at)'
+                    },
+                    is_active: {
+                        type: 'boolean',
+                        description: 'Computed: start_at ≤ now < end_at'
+                    },
+                    created_at: {
+                        type: 'string',
+                        format: 'date-time'
+                    },
+                    updated_at: {
+                        type: 'string',
+                        format: 'date-time'
+                    },
+                    created_by: {
+                        type: 'string',
+                        pattern: '^[a-fA-F0-9]{24}$',
+                        nullable: true,
+                        description: 'User ID của người tạo'
+                    }
+                }
+            },
+
+            AnnouncementListItem: {
+                allOf: [
+                    { $ref: '#/components/schemas/Announcement' },
+                    {
+                        type: 'object',
+                        properties: {
+                            days_remaining: {
+                                type: 'integer',
+                                nullable: true,
+                                description: 'Số ngày còn lại (nếu chưa hết hạn)'
+                            }
+                        }
+                    }
+                ]
+            },
+
+            CreateAnnouncementInput: {
+                type: 'object',
+                required: [
+                    'title',
+                    'content',
+                    'start_at',
+                    'end_at'
+                ],
+                properties: {
+                    title: {
+                        type: 'string',
+                        minLength: 5,
+                        maxLength: 200
+                    },
+                    content: {
+                        type: 'string',
+                        minLength: 10,
+                        maxLength: 5000
+                    },
+                    priority: {
+                        type: 'integer',
+                        minimum: 0,
+                        maximum: 10,
+                        default: 0
+                    },
+                    target: {
+                        type: 'string',
+                        enum: ['all', 'user', 'admin', 'guest'],
+                        default: 'all'
+                    },
+                    type: {
+                        type: 'string',
+                        enum: ['info', 'warning', 'promotion', 'system', 'urgent'],
+                        default: 'info'
+                    },
+                    is_dismissible: {
+                        type: 'boolean',
+                        default: true
+                    },
+                    start_at: {
+                        type: 'string',
+                        format: 'date-time'
+                    },
+                    end_at: {
+                        type: 'string',
+                        format: 'date-time'
+                    }
+                },
+                example: {
+                    title: 'Khuyến mãi Black Friday',
+                    content: 'Giảm giá lên đến 50% cho tất cả sản phẩm trong 24 giờ tới',
+                    priority: 10,
+                    target: 'all',
+                    type: 'promotion',
+                    is_dismissible: true,
+                    start_at: '2026-04-06T00:00:00Z',
+                    end_at: '2026-04-07T00:00:00Z'
+                }
+            },
+
+            UpdateAnnouncementInput: {
+                type: 'object',
+                properties: {
+                    title: {
+                        type: 'string',
+                        minLength: 5,
+                        maxLength: 200
+                    },
+                    content: {
+                        type: 'string',
+                        minLength: 10,
+                        maxLength: 5000
+                    },
+                    priority: {
+                        type: 'integer',
+                        minimum: 0,
+                        maximum: 10
+                    },
+                    target: {
+                        type: 'string',
+                        enum: ['all', 'user', 'admin', 'guest']
+                    },
+                    type: {
+                        type: 'string',
+                        enum: ['info', 'warning', 'promotion', 'system', 'urgent']
+                    },
+                    is_dismissible: {
+                        type: 'boolean'
+                    },
+                    start_at: {
+                        type: 'string',
+                        format: 'date-time'
+                    },
+                    end_at: {
+                        type: 'string',
+                        format: 'date-time'
+                    }
+                },
+                description: 'All fields optional (PATCH)'
+            },
+
+            AnnouncementResponse: {
+                type: 'object',
+                required: ['success', 'data'],
+                properties: {
+                    success: {
+                        type: 'boolean',
+                        example: true
+                    },
+                    data: {
+                        $ref: '#/components/schemas/Announcement'
+                    }
+                }
+            },
+
+            AnnouncementsListResponse: {
+                type: 'object',
+                required: ['success', 'data', 'pagination'],
+                properties: {
+                    success: {
+                        type: 'boolean',
+                        example: true
+                    },
+                    data: {
+                        type: 'array',
+                        items: {
+                            $ref: '#/components/schemas/AnnouncementListItem'
+                        }
+                    },
+                    pagination: {
+                        type: 'object',
+                        required: ['page', 'limit', 'total', 'totalPages'],
+                        properties: {
+                            page: {
+                                type: 'integer',
+                                example: 1
+                            },
+                            limit: {
+                                type: 'integer',
+                                example: 20
+                            },
+                            total: {
+                                type: 'integer',
+                                example: 100
+                            },
+                            totalPages: {
+                                type: 'integer',
+                                example: 5
+                            }
+                        }
+                    }
+                }
+            },
+
         },
     },
     paths: {
@@ -8275,7 +8560,493 @@ const swaggerSpec = {
                     "500": { $ref: "#/components/responses/InternalError" }
                 }
             }
+        },
+
+        // Announcements
+        '/api/v1/announcements': {
+            get: {
+                tags: ['Announcements'],
+                summary: 'Lấy thông báo hoạt động',
+                description: "public: retrieve active announcements (đang hoạt động, start_at ≤ now < end_at), sắp xếp theo priority",
+                parameters: [
+                    {
+                        in: 'query',
+                        name: 'target',
+                        schema: {
+                            type: 'string',
+                            enum: ['all', 'user', 'admin', 'guest']
+                        },
+                        description: 'Lọc theo đối tượng mục tiêu (tùy chọn)'
+                    }
+                ],
+                responses: {
+                    200: {
+                        description: 'Danh sách thông báo hoạt động',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    $ref: '#/components/schemas/AnnouncementsListResponse'
+                                }
+                            }
+                        }
+                    },
+                    500: {
+                        $ref: '#/components/responses/InternalError'
+                    }
+                }
+            },
+            post: {
+                tags: ['Announcements'],
+                summary: 'Tạo thông báo',
+                description: 'Admin only: Tạo thông báo mới',
+                security: [{ bearerAuth: [] }],
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: {
+                                $ref: '#/components/schemas/CreateAnnouncementInput'
+                            }
+                        }
+                    }
+                },
+                responses: {
+                    201: {
+                        description: 'Thông báo được tạo thành công',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    $ref: '#/components/schemas/AnnouncementResponse'
+                                }
+                            }
+                        }
+                    },
+                    400: {
+                        $ref: '#/components/responses/BadRequest'
+                    },
+                    401: {
+                        $ref: '#/components/responses/Unauthorized'
+                    },
+                    403: {
+                        $ref: '#/components/responses/Forbidden'
+                    },
+                    500: {
+                        $ref: '#/components/responses/InternalError'
+                    }
+                }
+            }
+        },
+
+        '/api/v1/announcements/{id}': {
+            get: {
+                tags: ['Announcements'],
+                summary: 'Lấy thông báo theo ID',
+                description: 'Public: Lấy chi tiết thông báo (active hoặc không)',
+                parameters: [
+                    {
+                        in: 'path',
+                        name: 'id',
+                        required: true,
+                        schema: {
+                            type: 'string',
+                            pattern: '^[a-fA-F0-9]{24}$'
+                        },
+                        description: 'Announcement ID'
+                    }
+                ],
+                responses: {
+                    200: {
+                        description: 'Chi tiết thông báo',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    $ref: '#/components/schemas/AnnouncementResponse'
+                                }
+                            }
+                        }
+                    },
+                    404: {
+                        $ref: '#/components/responses/NotFound'
+                    },
+                    500: {
+                        $ref: '#/components/responses/InternalError'
+                    }
+                }
+            },
+            put: {
+                tags: ['Announcements'],
+                summary: 'Cập nhật thông báo',
+                description: 'Admin only: Cập nhật thông báo (hỗ trợ partial update)',
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        in: 'path',
+                        name: 'id',
+                        required: true,
+                        schema: {
+                            type: 'string',
+                            pattern: '^[a-fA-F0-9]{24}$'
+                        }
+                    }
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: {
+                                $ref: '#/components/schemas/UpdateAnnouncementInput'
+                            }
+                        }
+                    }
+                },
+                responses: {
+                    200: {
+                        description: 'Thông báo được cập nhật',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    $ref: '#/components/schemas/AnnouncementResponse'
+                                }
+                            }
+                        }
+                    },
+                    400: {
+                        $ref: '#/components/responses/BadRequest'
+                    },
+                    401: {
+                        $ref: '#/components/responses/Unauthorized'
+                    },
+                    403: {
+                        $ref: '#/components/responses/Forbidden'
+                    },
+                    404: {
+                        $ref: '#/components/responses/NotFound'
+                    },
+                    500: {
+                        $ref: '#/components/responses/InternalError'
+                    }
+                }
+            },
+            delete: {
+                tags: ['Announcements'],
+                summary: 'Xóa thông báo',
+                description: 'Admin only: Soft delete thông báo (có thể restore lại)',
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        in: 'path',
+                        name: 'id',
+                        required: true,
+                        schema: {
+                            type: 'string',
+                            pattern: '^[a-fA-F0-9]{24}$'
+                        }
+                    }
+                ],
+                responses: {
+                    200: {
+                        description: 'Thông báo được xóa',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    properties: {
+                                        success: {
+                                            type: 'boolean',
+                                            example: true
+                                        },
+                                        message: {
+                                            type: 'string',
+                                            example: 'Announcement deleted successfully'
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    401: {
+                        $ref: '#/components/responses/Unauthorized'
+                    },
+                    403: {
+                        $ref: '#/components/responses/Forbidden'
+                    },
+                    404: {
+                        $ref: '#/components/responses/NotFound'
+                    },
+                    500: {
+                        $ref: '#/components/responses/InternalError'
+                    }
+                }
+            }
+        },
+
+        '/api/v1/announcements/admin/all': {
+            get: {
+                tags: ['Announcements'],
+                summary: 'Lấy tất cả thông báo',
+                description: 'Admin only: Lấy tất cả thông báo (active + scheduled)',
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        in: 'query',
+                        name: 'target',
+                        schema: {
+                            type: 'string',
+                            enum: ['all', 'user', 'admin', 'guest']
+                        },
+                        description: 'Lọc theo target (tùy chọn)'
+                    },
+                    {
+                        in: 'query',
+                        name: 'type',
+                        schema: {
+                            type: 'string',
+                            enum: ['info', 'warning', 'promotion', 'system', 'urgent']
+                        },
+                        description: 'Lọc theo type (tùy chọn)'
+                    },
+                    {
+                        in: 'query',
+                        name: 'activeOnly',
+                        schema: {
+                            type: 'boolean',
+                            default: false
+                        },
+                        description: 'Chỉ lấy thông báo đang hoạt động (tùy chọn)'
+                    },
+                    {
+                        in: 'query',
+                        name: 'page',
+                        schema: {
+                            type: 'integer',
+                            minimum: 1,
+                            default: 1
+                        }
+                    },
+                    {
+                        in: 'query',
+                        name: 'limit',
+                        schema: {
+                            type: 'integer',
+                            minimum: 1,
+                            maximum: 100,
+                            default: 20
+                        }
+                    }
+                ],
+                responses: {
+                    200: {
+                        description: 'Danh sách tất cả thông báo',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    $ref: '#/components/schemas/AnnouncementsListResponse'
+                                }
+                            }
+                        }
+                    },
+                    401: {
+                        $ref: '#/components/responses/Unauthorized'
+                    },
+                    403: {
+                        $ref: '#/components/responses/Forbidden'
+                    },
+                    500: {
+                        $ref: '#/components/responses/InternalError'
+                    }
+                }
+            }
+        },
+
+        '/api/v1/announcements/admin/scheduled': {
+            get: {
+                tags: ['Announcements'],
+                summary: 'Lấy thông báo scheduled',
+                description: 'Admin only: Lấy thông báo chưa bắt đầu (start_at > now)',
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        in: 'query',
+                        name: 'page',
+                        schema: {
+                            type: 'integer',
+                            minimum: 1,
+                            default: 1
+                        }
+                    },
+                    {
+                        in: 'query',
+                        name: 'limit',
+                        schema: {
+                            type: 'integer',
+                            minimum: 1,
+                            maximum: 100,
+                            default: 20
+                        }
+                    }
+                ],
+                responses: {
+                    200: {
+                        description: 'Danh sách thông báo scheduled',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    $ref: '#/components/schemas/AnnouncementsListResponse'
+                                }
+                            }
+                        }
+                    },
+                    401: {
+                        $ref: '#/components/responses/Unauthorized'
+                    },
+                    403: {
+                        $ref: '#/components/responses/Forbidden'
+                    },
+                    500: {
+                        $ref: '#/components/responses/InternalError'
+                    }
+                }
+            }
+        },
+
+        '/api/v1/announcements/admin/expired': {
+            get: {
+                tags: ['Announcements'],
+                summary: 'Lấy thông báo expired',
+                description: 'Admin only: Lấy thông báo đã kết thúc (end_at <= now)',
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        in: 'query',
+                        name: 'page',
+                        schema: {
+                            type: 'integer',
+                            minimum: 1,
+                            default: 1
+                        }
+                    },
+                    {
+                        in: 'query',
+                        name: 'limit',
+                        schema: {
+                            type: 'integer',
+                            minimum: 1,
+                            maximum: 100,
+                            default: 20
+                        }
+                    }
+                ],
+                responses: {
+                    200: {
+                        description: 'Danh sách thông báo expired',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    $ref: '#/components/schemas/AnnouncementsListResponse'
+                                }
+                            }
+                        }
+                    },
+                    401: {
+                        $ref: '#/components/responses/Unauthorized'
+                    },
+                    403: {
+                        $ref: '#/components/responses/Forbidden'
+                    },
+                    500: {
+                        $ref: '#/components/responses/InternalError'
+                    }
+                }
+            }
+        },
+
+        '/api/v1/announcements/admin/deleted': {
+            get: {
+                tags: ['Announcements'],
+                summary: 'Lấy thông báo đã xóa',
+                description: 'Admin only: Lấy danh sách thông báo đã xóa (để recover)',
+                security: [{ bearerAuth: [] }],
+                responses: {
+                    200: {
+                        description: 'Danh sách thông báo đã xóa',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    $ref: '#/components/schemas/AnnouncementsListResponse'
+                                }
+                            }
+                        }
+                    },
+                    401: {
+                        $ref: '#/components/responses/Unauthorized'
+                    },
+                    403: {
+                        $ref: '#/components/responses/Forbidden'
+                    },
+                    500: {
+                        $ref: '#/components/responses/InternalError'
+                    }
+                }
+            }
+        },
+
+        '/api/v1/announcements/{id}/restore': {
+            post: {
+                tags: ['Announcements'],
+                summary: 'Khôi phục thông báo',
+                description: 'Admin only: Khôi phục thông báo đã xóa',
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        in: 'path',
+                        name: 'id',
+                        required: true,
+                        schema: {
+                            type: 'string',
+                            pattern: '^[a-fA-F0-9]{24}$'
+                        }
+                    }
+                ],
+                responses: {
+                    200: {
+                        description: 'Thông báo được khôi phục',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    properties: {
+                                        success: {
+                                            type: 'boolean',
+                                            example: true
+                                        },
+                                        data: {
+                                            $ref: '#/components/schemas/Announcement'
+                                        },
+                                        message: {
+                                            type: 'string',
+                                            example: 'Announcement restored successfully'
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    401: {
+                        $ref: '#/components/responses/Unauthorized'
+                    },
+                    403: {
+                        $ref: '#/components/responses/Forbidden'
+                    },
+                    404: {
+                        $ref: '#/components/responses/NotFound'
+                    },
+                    500: {
+                        $ref: '#/components/responses/InternalError'
+                    }
+                }
+            }
         }
+
     },
 };
 

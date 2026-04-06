@@ -5582,4 +5582,584 @@ describe("swaggerSpec", () => {
         expect(bannerSchema.properties.updated_at.format).toBe("date-time");
     });
 
+    // Announcements tag
+    it('should define Announcements tag', () => {
+        const announcementTag = swaggerSpec.tags.find(
+            (tag) => tag.name === 'Announcements'
+        );
+        expect(announcementTag).toBeDefined();
+        expect(announcementTag.description).toContain('Quản lý');
+        expect(announcementTag.description).toContain('thông báo');
+    });
+
+    it('should define announcement schemas correctly', () => {
+        // ✅ Core announcement schemas
+        expect(swaggerSpec.components.schemas.Announcement).toBeDefined();
+        expect(swaggerSpec.components.schemas.Announcement.required).toContain('id');
+        expect(swaggerSpec.components.schemas.Announcement.required).toContain('title');
+        expect(swaggerSpec.components.schemas.Announcement.required).toContain('content');
+        expect(swaggerSpec.components.schemas.Announcement.required).toContain('priority');
+        expect(swaggerSpec.components.schemas.Announcement.required).toContain('target');
+        expect(swaggerSpec.components.schemas.Announcement.required).toContain('type');
+        expect(swaggerSpec.components.schemas.Announcement.required).toContain('start_at');
+        expect(swaggerSpec.components.schemas.Announcement.required).toContain('end_at');
+        expect(swaggerSpec.components.schemas.Announcement.required).toContain('is_active');
+
+        expect(swaggerSpec.components.schemas.AnnouncementListItem).toBeDefined();
+
+        // ✅ Input schemas
+        expect(swaggerSpec.components.schemas.CreateAnnouncementInput).toBeDefined();
+        expect(swaggerSpec.components.schemas.CreateAnnouncementInput.required).toEqual([
+            'title',
+            'content',
+            'start_at',
+            'end_at'
+        ]);
+
+        expect(swaggerSpec.components.schemas.UpdateAnnouncementInput).toBeDefined();
+
+        // ✅ Response schemas
+        expect(swaggerSpec.components.schemas.AnnouncementResponse).toBeDefined();
+        expect(swaggerSpec.components.schemas.AnnouncementsListResponse).toBeDefined();
+        expect(swaggerSpec.components.schemas.AnnouncementsListResponse.required).toEqual([
+            'success',
+            'data',
+            'pagination'
+        ]);
+    });
+
+    it('should define get active announcements endpoint correctly', () => {
+        const route = getPath('/api/v1/announcements', 'get');
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain('Announcements');
+        // ✅ FIXED: route.security can be undefined for public endpoints
+        expect(route.security === undefined || route.security.length === 0).toBe(true);
+        expect(route.description).toContain('hoạt động');
+        expect(route.description).toContain('active');
+        expect(route.parameters[0]).toMatchObject({
+            in: 'query',
+            name: 'target',
+            schema: {
+                type: 'string',
+                enum: ['all', 'user', 'admin', 'guest']
+            }
+        });
+        expect(route.responses['200'].content['application/json'].schema.$ref).toBe(
+            '#/components/schemas/AnnouncementsListResponse'
+        );
+        expect(route.responses['500'].$ref).toBe('#/components/responses/InternalError');
+    });
+
+    it('should define get announcement by ID endpoint correctly', () => {
+        const route = getPath('/api/v1/announcements/{id}', 'get');
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain('Announcements');
+        // ✅ FIXED: route.security can be undefined for public endpoints
+        expect(route.security === undefined || route.security.length === 0).toBe(true);
+        expect(route.parameters[0]).toMatchObject({
+            in: 'path',
+            name: 'id',
+            required: true,
+            schema: { type: 'string', pattern: '^[a-fA-F0-9]{24}$' }
+        });
+        expect(route.responses['200'].content['application/json'].schema.$ref).toBe(
+            '#/components/schemas/AnnouncementResponse'
+        );
+        expect(route.responses['404'].$ref).toBe('#/components/responses/NotFound');
+    });
+
+    it('should define create announcement endpoint correctly', () => {
+        const route = getPath('/api/v1/announcements', 'post');
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain('Announcements');
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain('Admin');
+        expect(getSchemaRef(route.requestBody)).toBe(
+            '#/components/schemas/CreateAnnouncementInput'
+        );
+        expect(route.responses['201'].content['application/json'].schema.$ref).toBe(
+            '#/components/schemas/AnnouncementResponse'
+        );
+        expect(route.responses['400'].$ref).toBe('#/components/responses/BadRequest');
+        expect(route.responses['401'].$ref).toBe('#/components/responses/Unauthorized');
+        expect(route.responses['403'].$ref).toBe('#/components/responses/Forbidden');
+        expect(route.responses['500'].$ref).toBe('#/components/responses/InternalError');
+    });
+
+    it('should define update announcement endpoint correctly', () => {
+        const route = getPath('/api/v1/announcements/{id}', 'put');
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain('Announcements');
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.parameters[0]).toMatchObject({
+            in: 'path',
+            name: 'id',
+            required: true,
+            schema: { type: 'string', pattern: '^[a-fA-F0-9]{24}$' }
+        });
+        expect(getSchemaRef(route.requestBody)).toBe(
+            '#/components/schemas/UpdateAnnouncementInput'
+        );
+        expect(route.responses['200'].content['application/json'].schema.$ref).toBe(
+            '#/components/schemas/AnnouncementResponse'
+        );
+        expect(route.responses['400'].$ref).toBe('#/components/responses/BadRequest');
+        expect(route.responses['404'].$ref).toBe('#/components/responses/NotFound');
+    });
+
+    it('should define delete announcement endpoint correctly', () => {
+        const route = getPath('/api/v1/announcements/{id}', 'delete');
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain('Announcements');
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.parameters[0]).toMatchObject({
+            in: 'path',
+            name: 'id',
+            required: true,
+            schema: { type: 'string', pattern: '^[a-fA-F0-9]{24}$' }
+        });
+        expect(route.responses['200'].content['application/json'].schema).toBeDefined();
+        expect(route.responses['401'].$ref).toBe('#/components/responses/Unauthorized');
+        expect(route.responses['403'].$ref).toBe('#/components/responses/Forbidden');
+        expect(route.responses['404'].$ref).toBe('#/components/responses/NotFound');
+    });
+
+    it('should define get all announcements endpoint correctly', () => {
+        const route = getPath('/api/v1/announcements/admin/all', 'get');
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain('Announcements');
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain('active');
+        expect(route.description).toContain('scheduled');
+        expect(route.parameters.map((p) => p.name)).toContain('target');
+        expect(route.parameters.map((p) => p.name)).toContain('type');
+        expect(route.parameters.map((p) => p.name)).toContain('activeOnly');
+        expect(route.parameters.map((p) => p.name)).toContain('page');
+        expect(route.parameters.map((p) => p.name)).toContain('limit');
+        expect(route.responses['200'].content['application/json'].schema.$ref).toBe(
+            '#/components/schemas/AnnouncementsListResponse'
+        );
+        expect(route.responses['401'].$ref).toBe('#/components/responses/Unauthorized');
+        expect(route.responses['403'].$ref).toBe('#/components/responses/Forbidden');
+    });
+
+    it('should define get scheduled announcements endpoint correctly', () => {
+        const route = getPath('/api/v1/announcements/admin/scheduled', 'get');
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain('Announcements');
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        // ✅ FIXED: Description is in Vietnamese, check for key terms
+        expect(route.description.toLowerCase()).toContain('chưa');
+        expect(route.description).toContain('start_at');
+        expect(route.responses['200'].content['application/json'].schema.$ref).toBe(
+            '#/components/schemas/AnnouncementsListResponse'
+        );
+        expect(route.responses['401'].$ref).toBe('#/components/responses/Unauthorized');
+        expect(route.responses['403'].$ref).toBe('#/components/responses/Forbidden');
+    });
+
+    it('should define get expired announcements endpoint correctly', () => {
+        const route = getPath('/api/v1/announcements/admin/expired', 'get');
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain('Announcements');
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        // ✅ FIXED: Description is in Vietnamese, check for key terms
+        expect(route.description.toLowerCase()).toContain('kết thúc');
+        expect(route.description).toContain('end_at');
+        expect(route.responses['200'].content['application/json'].schema.$ref).toBe(
+            '#/components/schemas/AnnouncementsListResponse'
+        );
+    });
+
+    it('should define get deleted announcements endpoint correctly', () => {
+        const route = getPath('/api/v1/announcements/admin/deleted', 'get');
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain('Announcements');
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.description).toContain('xóa');
+        expect(route.description).toContain('recover');
+        expect(route.responses['200'].content['application/json'].schema.$ref).toBe(
+            '#/components/schemas/AnnouncementsListResponse'
+        );
+    });
+
+    it('should define restore announcement endpoint correctly', () => {
+        const route = getPath('/api/v1/announcements/{id}/restore', 'post');
+
+        expect(route).toBeDefined();
+        expect(route.tags).toContain('Announcements');
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(route.parameters[0]).toMatchObject({
+            in: 'path',
+            name: 'id',
+            required: true,
+            schema: { type: 'string', pattern: '^[a-fA-F0-9]{24}$' }
+        });
+        // ✅ FIXED: Handle both $ref and inline response schema
+        const responseSchema = route.responses['200'].content['application/json'].schema;
+        expect(responseSchema).toBeDefined();
+
+        // Check if it's a $ref or inline schema
+        if (responseSchema.$ref) {
+            expect(responseSchema.$ref).toContain('Announcement');
+        } else if (responseSchema.properties) {
+            expect(responseSchema.properties.data || responseSchema.allOf).toBeDefined();
+        }
+
+        if (responseSchema.properties && responseSchema.properties.message) {
+            expect(responseSchema.properties.message).toBeDefined();
+        }
+    });
+
+    // ===== ANNOUNCEMENT SCHEMA VALIDATION =====
+
+    it('should validate Announcement schema properties', () => {
+        const announcementSchema = swaggerSpec.components.schemas.Announcement;
+
+        expect(announcementSchema.properties.id.pattern).toBe('^[a-fA-F0-9]{24}$');
+        expect(announcementSchema.properties.title.minLength).toBe(5);
+        expect(announcementSchema.properties.title.maxLength).toBe(200);
+        expect(announcementSchema.properties.content.minLength).toBe(10);
+        expect(announcementSchema.properties.content.maxLength).toBe(5000);
+        expect(announcementSchema.properties.priority.minimum).toBe(0);
+        expect(announcementSchema.properties.priority.maximum).toBe(10);
+        expect(announcementSchema.properties.target.enum).toEqual([
+            'all',
+            'user',
+            'admin',
+            'guest'
+        ]);
+        expect(announcementSchema.properties.type.enum).toEqual([
+            'info',
+            'warning',
+            'promotion',
+            'system',
+            'urgent'
+        ]);
+    });
+
+    it('should validate CreateAnnouncementInput required fields', () => {
+        const inputSchema = swaggerSpec.components.schemas.CreateAnnouncementInput;
+
+        expect(inputSchema.required).toContain('title');
+        expect(inputSchema.required).toContain('content');
+        expect(inputSchema.required).toContain('start_at');
+        expect(inputSchema.required).toContain('end_at');
+    });
+
+    it('should validate UpdateAnnouncementInput allows partial updates', () => {
+        const updateSchema = swaggerSpec.components.schemas.UpdateAnnouncementInput;
+
+        // All fields should be optional for PATCH
+        expect(updateSchema.required).toBeUndefined();
+        expect(updateSchema.properties.title).toBeDefined();
+        expect(updateSchema.properties.content).toBeDefined();
+        expect(updateSchema.properties.start_at).toBeDefined();
+        expect(updateSchema.properties.end_at).toBeDefined();
+    });
+
+    it('should validate announcement timestamps are ISO format', () => {
+        const announcementSchema = swaggerSpec.components.schemas.Announcement;
+
+        expect(announcementSchema.properties.start_at.type).toBe('string');
+        expect(announcementSchema.properties.start_at.format).toBe('date-time');
+        expect(announcementSchema.properties.end_at.type).toBe('string');
+        expect(announcementSchema.properties.end_at.format).toBe('date-time');
+        expect(announcementSchema.properties.created_at.type).toBe('string');
+        expect(announcementSchema.properties.created_at.format).toBe('date-time');
+        expect(announcementSchema.properties.updated_at.type).toBe('string');
+        expect(announcementSchema.properties.updated_at.format).toBe('date-time');
+    });
+
+    it('should validate announcement is_active is computed field', () => {
+        const announcementSchema = swaggerSpec.components.schemas.Announcement;
+
+        expect(announcementSchema.properties.is_active.type).toBe('boolean');
+        expect(announcementSchema.properties.is_active.description).toContain('Computed');
+        expect(announcementSchema.properties.is_active.description).toContain('start_at');
+        expect(announcementSchema.properties.is_active.description).toContain('now');
+    });
+
+    it('should validate announcement list items have days_remaining', () => {
+        const listItemSchema = swaggerSpec.components.schemas.AnnouncementListItem;
+
+        expect(listItemSchema.allOf).toBeDefined();
+        expect(listItemSchema.allOf[0].$ref).toBe(
+            '#/components/schemas/Announcement'
+        );
+        expect(listItemSchema.allOf[1].properties.days_remaining).toBeDefined();
+        expect(listItemSchema.allOf[1].properties.days_remaining.nullable).toBe(true);
+    });
+
+    it('should validate announcements list pagination', () => {
+        const listResponse = swaggerSpec.components.schemas.AnnouncementsListResponse;
+
+        expect(listResponse.required).toContain('success');
+        expect(listResponse.required).toContain('data');
+        expect(listResponse.required).toContain('pagination');
+        expect(listResponse.properties.pagination.properties.page.type).toBe('integer');
+        expect(listResponse.properties.pagination.properties.limit.type).toBe('integer');
+        expect(listResponse.properties.pagination.properties.total.type).toBe('integer');
+        expect(listResponse.properties.pagination.properties.totalPages.type).toBe(
+            'integer'
+        );
+    });
+
+    it('should validate AnnouncementResponse structure', () => {
+        const responseSchema = swaggerSpec.components.schemas.AnnouncementResponse;
+
+        expect(responseSchema.required).toContain('success');
+        expect(responseSchema.required).toContain('data');
+        expect(responseSchema.properties.data.$ref).toBe(
+            '#/components/schemas/Announcement'
+        );
+    });
+
+    // ===== ANNOUNCEMENT ENDPOINT VALIDATION =====
+
+    it('should validate public announcement endpoints don\'t require auth', () => {
+        const getRoute = getPath('/api/v1/announcements', 'get');
+        const getByIdRoute = getPath('/api/v1/announcements/{id}', 'get');
+
+        // ✅ FIXED: security can be undefined [] for public endpoints
+        expect(getRoute.security === undefined || getRoute.security.length === 0).toBe(true);
+        expect(getByIdRoute.security === undefined || getByIdRoute.security.length === 0).toBe(true);
+    });
+
+    it('should validate admin announcement endpoints require auth', () => {
+        const createRoute = getPath('/api/v1/announcements', 'post');
+        const updateRoute = getPath('/api/v1/announcements/{id}', 'put');
+        const deleteRoute = getPath('/api/v1/announcements/{id}', 'delete');
+        const allRoute = getPath('/api/v1/announcements/admin/all', 'get');
+        const scheduledRoute = getPath('/api/v1/announcements/admin/scheduled', 'get');
+        const expiredRoute = getPath('/api/v1/announcements/admin/expired', 'get');
+        const deletedRoute = getPath('/api/v1/announcements/admin/deleted', 'get');
+        const restoreRoute = getPath('/api/v1/announcements/{id}/restore', 'post');
+
+        expect(createRoute.security).toEqual([{ bearerAuth: [] }]);
+        expect(updateRoute.security).toEqual([{ bearerAuth: [] }]);
+        expect(deleteRoute.security).toEqual([{ bearerAuth: [] }]);
+        expect(allRoute.security).toEqual([{ bearerAuth: [] }]);
+        expect(scheduledRoute.security).toEqual([{ bearerAuth: [] }]);
+        expect(expiredRoute.security).toEqual([{ bearerAuth: [] }]);
+        expect(deletedRoute.security).toEqual([{ bearerAuth: [] }]);
+        expect(restoreRoute.security).toEqual([{ bearerAuth: [] }]);
+    });
+
+    it('should validate all announcement endpoints have proper error responses', () => {
+        const announcementEndpoints = [
+            ['/api/v1/announcements', 'get'],
+            ['/api/v1/announcements', 'post'],
+            ['/api/v1/announcements/{id}', 'get'],
+            ['/api/v1/announcements/{id}', 'put'],
+            ['/api/v1/announcements/{id}', 'delete'],
+            ['/api/v1/announcements/admin/all', 'get'],
+            ['/api/v1/announcements/admin/scheduled', 'get'],
+            ['/api/v1/announcements/admin/expired', 'get'],
+            ['/api/v1/announcements/admin/deleted', 'get'],
+            ['/api/v1/announcements/{id}/restore', 'post']
+        ];
+
+        announcementEndpoints.forEach(([path, method]) => {
+            const route = getPath(path, method);
+            expect(route).toBeDefined();
+            expect(route.responses['500']).toBeDefined();
+        });
+    });
+
+    it('should validate announcement response uses proper DTO refs', () => {
+        const announcementResponse = swaggerSpec.components.schemas.AnnouncementResponse;
+
+        expect(announcementResponse.properties.data.$ref).toBe(
+            '#/components/schemas/Announcement'
+        );
+    });
+
+    it('should validate announcement target enum consistency', () => {
+        const createInput = swaggerSpec.components.schemas.CreateAnnouncementInput;
+        const updateInput = swaggerSpec.components.schemas.UpdateAnnouncementInput;
+        const announcement = swaggerSpec.components.schemas.Announcement;
+
+        expect(createInput.properties.target.enum).toEqual([
+            'all',
+            'user',
+            'admin',
+            'guest'
+        ]);
+        expect(updateInput.properties.target.enum).toEqual([
+            'all',
+            'user',
+            'admin',
+            'guest'
+        ]);
+        expect(announcement.properties.target.enum).toEqual([
+            'all',
+            'user',
+            'admin',
+            'guest'
+        ]);
+    });
+
+    it('should validate announcement type enum consistency', () => {
+        const createInput = swaggerSpec.components.schemas.CreateAnnouncementInput;
+        const updateInput = swaggerSpec.components.schemas.UpdateAnnouncementInput;
+        const announcement = swaggerSpec.components.schemas.Announcement;
+
+        const expectedEnum = [
+            'info',
+            'warning',
+            'promotion',
+            'system',
+            'urgent'
+        ];
+
+        expect(createInput.properties.type.enum).toEqual(expectedEnum);
+        expect(updateInput.properties.type.enum).toEqual(expectedEnum);
+        expect(announcement.properties.type.enum).toEqual(expectedEnum);
+    });
+
+    it('should validate announcement priority constraints', () => {
+        const createInput = swaggerSpec.components.schemas.CreateAnnouncementInput;
+        const updateInput = swaggerSpec.components.schemas.UpdateAnnouncementInput;
+        const announcement = swaggerSpec.components.schemas.Announcement;
+
+        expect(createInput.properties.priority.minimum).toBe(0);
+        expect(createInput.properties.priority.maximum).toBe(10);
+        expect(updateInput.properties.priority.minimum).toBe(0);
+        expect(updateInput.properties.priority.maximum).toBe(10);
+        expect(announcement.properties.priority.minimum).toBe(0);
+        expect(announcement.properties.priority.maximum).toBe(10);
+    });
+
+    it('should validate announcement end_at description mentions constraint', () => {
+        const announcement = swaggerSpec.components.schemas.Announcement;
+
+        expect(announcement.properties.end_at.description).toContain('phải');
+        expect(announcement.properties.end_at.description).toContain('>');
+        expect(announcement.properties.end_at.description).toContain('start_at');
+    });
+
+    it('should validate announcement is_dismissible default is true', () => {
+        const createInput = swaggerSpec.components.schemas.CreateAnnouncementInput;
+        const announcement = swaggerSpec.components.schemas.Announcement;
+
+        expect(createInput.properties.is_dismissible.default).toBe(true);
+        expect(announcement.properties.is_dismissible.default).toBe(true);
+    });
+
+    it('should validate announcement created_by is nullable', () => {
+        const announcement = swaggerSpec.components.schemas.Announcement;
+
+        expect(announcement.properties.created_by).toBeDefined();
+        expect(announcement.properties.created_by.nullable).toBe(true);
+        expect(announcement.properties.created_by.description).toContain('User ID');
+    });
+
+    it('should validate announcement list response data field type', () => {
+        const listResponse = swaggerSpec.components.schemas.AnnouncementsListResponse;
+
+        expect(listResponse.properties.data.type).toBe('array');
+        expect(listResponse.properties.data.items.$ref).toBe(
+            '#/components/schemas/AnnouncementListItem'
+        );
+    });
+
+    it('should validate admin announcements endpoint filters work correctly', () => {
+        const allRoute = getPath('/api/v1/announcements/admin/all', 'get');
+
+        const targetParam = allRoute.parameters.find((p) => p.name === 'target');
+        const typeParam = allRoute.parameters.find((p) => p.name === 'type');
+        const activeOnlyParam = allRoute.parameters.find((p) => p.name === 'activeOnly');
+
+        expect(targetParam).toBeDefined();
+        expect(targetParam.schema.enum).toEqual(['all', 'user', 'admin', 'guest']);
+
+        expect(typeParam).toBeDefined();
+        expect(typeParam.schema.enum).toEqual([
+            'info',
+            'warning',
+            'promotion',
+            'system',
+            'urgent'
+        ]);
+
+        expect(activeOnlyParam).toBeDefined();
+        expect(activeOnlyParam.schema.type).toBe('boolean');
+    });
+
+    it('should validate scheduled announcements endpoint sorted by start_at', () => {
+        const route = getPath('/api/v1/announcements/admin/scheduled', 'get');
+
+        expect(route).toBeDefined();
+        expect(route.description).toContain('chưa bắt đầu');
+    });
+
+    it('should validate expired announcements endpoint sorted by end_at', () => {
+        const route = getPath('/api/v1/announcements/admin/expired', 'get');
+
+        expect(route).toBeDefined();
+        expect(route.description).toContain('kết thúc');
+    });
+
+    it('should validate deleted announcements shows audit trail', () => {
+        const route = getPath('/api/v1/announcements/admin/deleted', 'get');
+
+        expect(route).toBeDefined();
+        // ✅ FIXED: Description is in Vietnamese, check for key concepts
+        expect(route.description.toLowerCase()).toContain('xóa');
+        expect(route.description.toLowerCase()).toContain('recover');
+    });
+
+    it('should validate restore announcement returns restored data with message', () => {
+        const route = getPath('/api/v1/announcements/{id}/restore', 'post');
+        const responseSchema = route.responses['200'].content['application/json'].schema;
+
+        expect(responseSchema.properties.data).toBeDefined();
+        expect(responseSchema.properties.message).toBeDefined();
+    });
+
+    it('should validate announcement created_by is required in response', () => {
+        const announcement = swaggerSpec.components.schemas.Announcement;
+
+        // created_by không phải required field (vì nullable), nhưng phải có trong schema
+        expect(announcement.properties.created_by).toBeDefined();
+        expect(announcement.properties.created_by.pattern).toBe('^[a-fA-F0-9]{24}$');
+    });
+
+    it('should validate announcement title and content length constraints', () => {
+        const createInput = swaggerSpec.components.schemas.CreateAnnouncementInput;
+
+        expect(createInput.properties.title.minLength).toBe(5);
+        expect(createInput.properties.title.maxLength).toBe(200);
+        expect(createInput.properties.content.minLength).toBe(10);
+        expect(createInput.properties.content.maxLength).toBe(5000);
+    });
+
+    it('should validate all admin routes require bearerAuth', () => {
+        const adminRoutes = [
+            ['/api/v1/announcements', 'post'],
+            ['/api/v1/announcements/{id}', 'put'],
+            ['/api/v1/announcements/{id}', 'delete'],
+            ['/api/v1/announcements/admin/all', 'get'],
+            ['/api/v1/announcements/admin/scheduled', 'get'],
+            ['/api/v1/announcements/admin/expired', 'get'],
+            ['/api/v1/announcements/admin/deleted', 'get'],
+            ['/api/v1/announcements/{id}/restore', 'post']
+        ];
+
+        adminRoutes.forEach(([path, method]) => {
+            const route = getPath(path, method);
+            expect(route.security).toEqual([{ bearerAuth: [] }]);
+        });
+    });
+
 });

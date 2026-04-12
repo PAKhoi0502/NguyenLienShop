@@ -166,8 +166,8 @@ const createPaymentSchema = z.object({
  * - vnp_TmnCode: merchant code
  * - vnp_TransactionNo: VNPay transaction number
  * - vnp_TxnRef: merchant transaction reference (our payment ID)
- * - vnp_SecureHash: HMAC-SHA256 signature
- * - vnp_SecureHashType: SHA256
+ * - vnp_SecureHash: HMAC signature (SHA256 = 64 chars, SHA512 = 128 chars)
+ * - vnp_SecureHashType: hash algorithm used (e.g. SHA256, SHA512)
  * 
  * ✅ Service validates:
  * - Signature (CRITICAL for security)
@@ -221,11 +221,11 @@ const vnpayWebhookSchema = z.object({
 
     vnp_SecureHash: z
         .string()
-        .regex(/^[a-f0-9]{64}$/, 'Invalid signature format'),
+        .regex(/^[a-f0-9]{64}$|^[a-f0-9]{128}$/, 'Invalid signature format (expected SHA256 or SHA512 hex)'),
 
     vnp_SecureHashType: z
         .string()
-        .default('SHA256'),
+        .default('SHA512'),
 });
 
 // ===== STRIPE WEBHOOK SCHEMA =====

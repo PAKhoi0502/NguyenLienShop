@@ -1095,7 +1095,9 @@ class PaymentService {
     /**
      * ✅ INTERNAL: Verify VNPay webhook signature
      * 
-     * VNPay uses HMAC-SHA256 signature verification
+     * VNPay uses HMAC signature verification.
+     * Algorithm is read from VNPAY_HASH_ALGORITHM env (default: SHA512).
+     * Secret is read from VNPAY_SECURE_SECRET env.
      * 
      * @private
      * @param {Object} webhookData - Full webhook payload
@@ -1108,15 +1110,18 @@ class PaymentService {
             ...dataToHash
         } = webhookData;
 
-        // ✅ Build sorted query string (excluding hash field)
+        // ✅ Build sorted query string (excluding hash fields)
         const sortedKeys = Object.keys(dataToHash).sort();
         const queryString = sortedKeys
             .map((key) => `${key}=${dataToHash[key]}`)
             .join('&');
 
-        // ✅ Compute HMAC-SHA256
+        // ✅ Use configured algorithm and secret (matches VNPAY_HASH_ALGORITHM in .env)
+        const rawAlgorithm = (process.env.VNPAY_HASH_ALGORITHM || 'SHA512').toUpperCase();
+        const SUPPORTED_ALGORITHMS = ['SHA256', 'SHA512'];
+        const algorithm = SUPPORTED_ALGORITHMS.includes(rawAlgorithm) ? rawAlgorithm.toLowerCase() : 'sha512';
         const computed = crypto
-            .createHmac('sha256', process.env.VNPAY_WEBHOOK_SECRET || '')
+            .createHmac(algorithm, process.env.VNPAY_SECURE_SECRET || '')
             .update(queryString)
             .digest('hex');
 

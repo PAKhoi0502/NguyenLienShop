@@ -85,6 +85,10 @@ const swaggerSpec = {
             name: "Notifications",
             description: "Quản lý thông báo cho người dùng: lấy danh sách, đánh dấu đã đọc, xóa.",
         },
+        {
+            name: "Chats",
+            description: "Chatbot trợ lý AI tích hợp Gemini"
+        },
     ],
     components: {
         securitySchemes: {
@@ -4560,6 +4564,38 @@ const swaggerSpec = {
                 },
                 required: ["success", "data"]
             },
+
+            //Chatbots
+            ChatSessionResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean" },
+                    data: {
+                        type: "object",
+                        properties: {
+                            id: { type: "string" },
+                            title: { type: "string" },
+                            last_message_at: { type: "string", format: "date-time" }
+                        }
+                    }
+                }
+            },
+
+            ChatMessageResponse: {
+                type: "object",
+                properties: {
+                    success: { type: "boolean" },
+                    data: {
+                        type: "object",
+                        properties: {
+                            reply: { type: "string" },
+                            intent: { type: "string", enum: ["GREETING", "ASK_PRICE", "SEARCH_PRODUCT", "ORDER_STATUS", "UNKNOWN"] },
+                            session_id: { type: "string" },
+                            related_data: { type: "object", nullable: true }
+                        }
+                    }
+                }
+            }
         },
     },
     paths: {
@@ -10094,7 +10130,73 @@ const swaggerSpec = {
                     "500": { $ref: "#/components/responses/InternalError" }
                 }
             }
-        }
+        },
+
+        // Chatbots
+        "/api/v1/chats/sessions": {
+            post: {
+                tags: ["Chats"],
+                summary: "Tạo phiên chat mới",
+                security: [{ bearerAuth: [] }],
+                requestBody: {
+                    content: {
+                        "application/json": {
+                            schema: {
+                                type: "object",
+                                properties: {
+                                    title: { type: "string", example: "Tư vấn túi lưới" }
+                                }
+                            }
+                        }
+                    }
+                },
+                responses: {
+                    201: {
+                        description: "Tạo session thành công",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/ChatSessionResponse" }
+                            }
+                        }
+                    },
+                    401: { $ref: "#/components/responses/Unauthorized" }
+                }
+            }
+        },
+        "/api/v1/chats/message": {
+            post: {
+                tags: ["Chats"],
+                summary: "Gửi tin nhắn cho AI trợ lý",
+                security: [{ bearerAuth: [] }],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: {
+                                type: "object",
+                                required: ["message", "session_id"],
+                                properties: {
+                                    message: { type: "string", example: "Túi bọc trái na giá bao nhiêu?" },
+                                    session_id: { type: "string", pattern: "^[a-fA-F0-9]{24}$" }
+                                }
+                            }
+                        }
+                    }
+                },
+                responses: {
+                    200: {
+                        description: "AI phản hồi thành công",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/ChatMessageResponse" }
+                            }
+                        }
+                    },
+                    404: { $ref: "#/components/responses/NotFound" },
+                    503: { $ref: "#/components/responses/InternalError" }
+                }
+            }
+        },
     },
 };
 

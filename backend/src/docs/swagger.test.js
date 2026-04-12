@@ -7334,4 +7334,33 @@ describe("swaggerSpec", () => {
         expect(unreadOnlyParam.schema.type).toBe("boolean");
     });
 
+    // ===== CHATS TESTS =====
+    it("should define Chats tag", () => {
+        const chatTag = swaggerSpec.tags.find((tag) => tag.name === "Chats");
+        expect(chatTag).toBeDefined();
+    });
+
+    it("should define chat schemas correctly", () => {
+        expect(swaggerSpec.components.schemas.ChatSessionResponse).toBeDefined();
+        expect(swaggerSpec.components.schemas.ChatMessageResponse).toBeDefined();
+    });
+
+    it("should define chat session endpoint correctly", () => {
+        const route = getPath("/api/v1/chats/sessions", "post");
+        expect(route).toBeDefined();
+        expect(route.security).toEqual([{ bearerAuth: [] }]);
+        expect(getSchemaRef(route.responses["201"])).toBe("#/components/schemas/ChatSessionResponse");
+    });
+
+    it("should define chat message endpoint correctly", () => {
+        const route = getPath("/api/v1/chats/message", "post");
+        expect(route).toBeDefined();
+        expect(route.tags).toContain("Chats");
+
+        const requestSchema = route.requestBody.content["application/json"].schema;
+        expect(requestSchema.required).toContain("message");
+        expect(requestSchema.required).toContain("session_id");
+
+        expect(getSchemaRef(route.responses["200"])).toBe("#/components/schemas/ChatMessageResponse");
+    });
 });

@@ -15,6 +15,7 @@ const bannerRoutes = require('../modules/banners/banner.routes');
 const announcementRoutes = require('../modules/announcements/announcement.routes');
 const shopInfoRoutes = require('../modules/shop_info/shop_info.routes');
 const notificationRoutes = require('../modules/notifications/notification.routes');
+const chatRoutes = require('../modules/chats/chat.routes');
 
 // ============================================================================
 // ===== MOUNT ALL ROUTES =====
@@ -55,6 +56,8 @@ router.use('/shop-info', shopInfoRoutes);
 
 // Notification routes
 router.use("/notifications", notificationRoutes);
+
+router.use('/chats', chatRoutes);
 
 
 // ✅ Product module routes (contains: products, variants, variant-units)

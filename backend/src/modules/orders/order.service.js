@@ -6,6 +6,8 @@ const AppError = require('../../utils/appError.util');
 // Import dependencies
 const Variant = require('../products/variant.model');
 const Cart = require('../carts/cart.model');
+const EmailJob = require('../emails/email.model');
+const User = require('../users/user.model');
 
 /**
  * ============================================
@@ -215,6 +217,26 @@ class OrderService {
             });
 
             await order.save({ session });
+
+            const user = await User.findById(userId).session(session);
+
+            if (user && user.email) {
+                await EmailJob.create([{
+                    to: [user.email],
+                    template: 'ORDER_CONFIRMATION',
+                    payload: {
+                        user_name: user.full_name || 'Khách hàng',
+                        order_id: order.order_code,
+                        total_amount: order.pricing.total_amount.toLocaleString('vi-VN'),
+                        items: order.items.map(item => ({
+                            name: item.product_name,
+                            qty: item.quantity_ordered,
+                            price: item.unit_price.toLocaleString('vi-VN')
+                        }))
+                    },
+                    status: 'pending'
+                }], { session });
+            }
 
             // ✅ 8. Delete/mark cart as checked out
             await Cart.deleteOne({ _id: cartId }, { session });
@@ -985,6 +1007,28 @@ class OrderService {
 
         return stats[0];
     }
+
+    /**
+     * ✅ READ: Get the most recent order for a specific user
+     * 
+     * Used by Chatbot/AI to provide quick status updates
+     * Pattern #8: Returns mapped DTO
+     * 
+     * @param {String} userId 
+     * @returns {Object|null} Latest order DTO or null
+     */
+    static async getLatestOrderByUser(userId) {
+        if (!userId) return null;
+
+        const order = await Order.findOne({ user_id: userId })
+            .sort({ created_at: -1 });
+
+        if (!order) return null;
+
+        // ✅ Mapping to DTO before returning
+        return OrderMapper.toListDTO(order);
+    }
+
 }
 
 module.exports = OrderService;

@@ -3,6 +3,7 @@ require("dotenv").config();
 const mongoose = require("mongoose");
 const app = require("./app");
 const connectDB = require("./config/db");
+const EmailService = require('./modules/emails/email.service');
 
 const PORT = process.env.PORT || 5000;
 
@@ -33,6 +34,10 @@ const startServer = async () => {
         console.log(`Swagger docs at http://localhost:${PORT}/api-docs`);
     });
 };
+
+setInterval(() => {
+    EmailService.processOneJob().catch(err => console.error('Email Worker Error:', err));
+}, 10000);
 
 startServer().catch((err) => {
     console.error("Failed to start server:", err);

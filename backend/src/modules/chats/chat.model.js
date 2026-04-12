@@ -54,6 +54,14 @@ sessionSchema.pre(/^find/, function () {
     this.where({ is_deleted: false });
 });
 
+// ===== INDEXES =====
+
+// Chat message pagination: load conversation history in order
+messageSchema.index({ session_id: 1, created_at: -1 });
+
+// Chat session lookup by user (one user can have many sessions)
+sessionSchema.index({ user_id: 1 });
+
 const ChatSession = mongoose.model('ChatSession', sessionSchema);
 const ChatMessage = mongoose.model('ChatMessage', messageSchema);
 

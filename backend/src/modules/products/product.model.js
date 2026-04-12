@@ -212,9 +212,9 @@ productSchema.index(
     }
 );
 
-// ✅ FIX #6: Compound index for listing (category + status + deleted)
+// ✅ FIX #6: Compound index for listing (category + status + deleted + newest first)
 productSchema.index(
-    { category_id: 1, status: 1, is_deleted: 1 },
+    { category_id: 1, status: 1, is_deleted: 1, created_at: -1 },
     {
         partialFilterExpression: {
             status: 'ACTIVE',

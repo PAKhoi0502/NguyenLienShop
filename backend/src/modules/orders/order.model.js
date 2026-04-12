@@ -176,7 +176,7 @@ const orderSchema = new mongoose.Schema(
 
 // ===== INDEXES =====
 orderSchema.index({ user_id: 1, created_at: -1 });     // User order history
-orderSchema.index({ status: 1 });                       // Status filtering
+orderSchema.index({ status: 1, created_at: -1 });       // Status filtering with newest first
 orderSchema.index({ 'payment.status': 1 });            // Payment status
 orderSchema.index({ payment_expires_at: 1 });          // TTL cleanup
 orderSchema.index({ is_deleted: 1, created_at: -1 });  // Soft-delete queries

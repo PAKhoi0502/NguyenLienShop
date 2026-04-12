@@ -266,10 +266,11 @@ const cartSchema = new mongoose.Schema(
 
 // ===== INDEXES (Production Optimized) =====
 
-// ✅ FIX #6.1: User cart lookup
+// ✅ FIX #6.1: User cart lookup — partial unique enforces one ACTIVE cart per user
 cartSchema.index(
-    { user_id: 1, status: 1 },
+    { user_id: 1 },
     {
+        unique: true,
         sparse: true,
         partialFilterExpression: {
             status: 'ACTIVE',
@@ -278,10 +279,11 @@ cartSchema.index(
     }
 );
 
-// ✅ FIX #6.2: Session cart lookup
+// ✅ FIX #6.2: Session cart lookup — partial unique enforces one ACTIVE cart per guest session
 cartSchema.index(
-    { session_key: 1, status: 1 },
+    { session_key: 1 },
     {
+        unique: true,
         sparse: true,
         partialFilterExpression: {
             status: 'ACTIVE',

@@ -184,29 +184,25 @@ const vnpayWebhookSchema = z.object({
 
     vnp_BankTranNo: z
         .string()
-        .max(100, 'Bank transaction number too long')
+        .max(100)
         .optional(),
 
     vnp_CardType: z
-        .enum(['DEBIT', 'CREDIT'])
-        .optional(),
+        .string()
+        .optional(),                    // ✅ Bỏ enum DEBIT/CREDIT - VNPay có thể gửi giá trị khác
 
     vnp_OrderInfo: z
         .string()
-        .max(200, 'Order info too long')
+        .max(200)
         .optional(),
 
     vnp_PayDate: z
         .string()
-        .regex(
-            /^\d{14}$/,
-            'Payment date must be in format YYYYMMDDHHMISS'
-        ),
+        .regex(/^\d{14}$/, 'Payment date must be in format YYYYMMDDHHMISS'),
 
     vnp_ResponseCode: z
         .string()
-        .length(2, 'Response code must be 2 characters')
-        .regex(/^\d{2}$/, 'Response code must be numeric'),
+        .min(1, 'Response code is required'),   // ✅ Bỏ .length(2) - cho linh hoạt hơn
 
     vnp_TmnCode: z
         .string()
@@ -214,19 +210,27 @@ const vnpayWebhookSchema = z.object({
 
     vnp_TransactionNo: z
         .string()
-        .max(100, 'Transaction number too long'),
+        .max(100)
+        .optional(),                    // ✅ Optional - đôi khi VNPay không gửi
 
-    vnp_TxnRef: transactionRefSchema,
-    // Our payment ID / reference
+    vnp_TxnRef: z
+        .string()
+        .min(1, 'Transaction reference is required')
+        .max(100)
+        .trim(),                        // ✅ Bỏ transactionRefSchema - quá strict cho webhook
 
     vnp_SecureHash: z
         .string()
-        .regex(/^[a-f0-9]{64}$|^[a-f0-9]{128}$/, 'Invalid signature format (expected SHA256 or SHA512 hex)'),
+        .regex(
+            /^[a-fA-F0-9]{64}$|^[a-fA-F0-9]{128}$/,  // ✅ Thêm A-F (chữ hoa)
+            'Invalid signature format (expected SHA256 or SHA512 hex)'
+        ),
 
     vnp_SecureHashType: z
         .string()
+        .optional()
         .default('SHA512'),
-});
+}).passthrough();
 
 // ===== STRIPE WEBHOOK SCHEMA =====
 

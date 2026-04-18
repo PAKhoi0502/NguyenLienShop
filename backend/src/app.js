@@ -11,6 +11,8 @@ const errorHandler = require("./middlewares/errorHandler.middleware")
 
 const app = express();
 
+app.set('trust proxy', 1);
+
 const parseCorsOrigins = () => {
     const raw = process.env.CORS_ORIGINS || "http://localhost:3000";
     return raw

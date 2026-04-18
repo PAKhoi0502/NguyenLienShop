@@ -191,14 +191,10 @@ const cartSchema = new mongoose.Schema(
         user_id: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',
-            sparse: true, // Allow null for guest carts
-            index: true,
         },
 
         session_key: {
             type: String,
-            sparse: true, // Allow null for user carts
-            index: true,
             // Generated client-side (UUID) for guest carts
             // Format: v4-uuid string
         },
@@ -231,7 +227,6 @@ const cartSchema = new mongoose.Schema(
                 message: 'Status must be ACTIVE, ABANDONED, or CHECKED_OUT',
             },
             default: 'ACTIVE',
-            index: true,
         },
 
         // ===== EXPIRY =====

@@ -40,18 +40,28 @@ const {
  * - AMOUNT_MISMATCH_FRAUD_ATTEMPT: Amount doesn't match order
  */
 const handleVNPayWebhook = asyncHandler(async (req, res) => {
-    // ✅ Validate webhook structure
-    const validated = vnpayWebhookSchema.parse(req.body);
+    try {
+        // ✅ Validate webhook structure
+        const validated = vnpayWebhookSchema.parse(req.body);
 
-    // ✅ Process webhook
-    const result = await PaymentService.handleVNPayWebhook(validated);
+        // ✅ Process webhook
+        const result = await PaymentService.handleVNPayWebhook(validated);
 
-    // ✅ Always respond 200 OK to webhook (even on error)
-    // VNPay will retry if we return non-200
-    return res.status(200).json({
-        success: true,
-        data: result,
-    });
+        // ✅ Luôn trả 200 OK - VNPay sẽ retry nếu nhận non-200
+        return res.status(200).json({
+            success: true,
+            data: result,
+        });
+    } catch (error) {
+        // ✅ Log lỗi nhưng vẫn trả 200 để VNPay không retry vô hạn
+        console.error('[VNPay Webhook Error]', error.message);
+
+        return res.status(200).json({
+            success: false,
+            code: error.errorCode || 'WEBHOOK_ERROR',
+            message: error.message,
+        });
+    }
 });
 
 /**

@@ -5,19 +5,16 @@ const tokenSchema = new mongoose.Schema(
         user_id: {
             type: mongoose.Schema.Types.ObjectId,
             required: true,
-            index: true,
         },
         jti: {
             type: String,
             required: true,
             unique: true,
-            index: true,
         },
         token_hash: {
             type: String,
             required: true,
             unique: true,
-            index: true,
         },
         user_agent: String,
         ip_address: String,
@@ -25,7 +22,6 @@ const tokenSchema = new mongoose.Schema(
         is_revoked: {
             type: Boolean,
             default: false,
-            index: true,
         },
         revoked_at: Date,
         revoked_reason: String,
@@ -34,7 +30,6 @@ const tokenSchema = new mongoose.Schema(
         expires_at: {
             type: Date,
             required: true,
-            index: true,
             expires: 0,
         },
     },
